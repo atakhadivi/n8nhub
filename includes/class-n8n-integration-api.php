@@ -1035,18 +1035,18 @@ class N8N_Integration_API {
      */
     public function test_trigger() {
         // Check if user has admin permissions
-        if (!\current_user_can('manage_options')) {
+        if (!current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }
         
         // Check nonce
-        if (!isset($_POST['nonce']) || !\wp_verify_nonce($_POST['nonce'], 'n8n_integration_admin_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'n8n_integration_admin_nonce')) {
             wp_send_json_error('Invalid nonce');
         }
         
         // Get trigger ID and test data
-        $trigger_id = isset($_POST['trigger']) ? \sanitize_text_field($_POST['trigger']) : '';
-        $test_data_json = isset($_POST['test_data']) ? \wp_unslash($_POST['test_data']) : '';
+        $trigger_id = isset($_POST['trigger_id']) ? sanitize_text_field($_POST['trigger_id']) : '';
+        $test_data_json = isset($_POST['test_data']) ? wp_unslash($_POST['test_data']) : '';
         
         // Check if trigger ID is valid
         if (empty($trigger_id)) {
@@ -1054,13 +1054,13 @@ class N8N_Integration_API {
         }
         
         // Check if trigger is enabled
-        $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
+        $enabled_triggers = get_option('n8n_integration_enabled_triggers', array());
         if (!in_array($trigger_id, $enabled_triggers)) {
             wp_send_json_error('Trigger is not enabled');
         }
         
         // Get webhook URL data
-        $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
+        $webhook_urls = get_option('n8n_integration_webhook_urls', array());
         $webhook_data = isset($webhook_urls[$trigger_id]) ? $webhook_urls[$trigger_id] : '';
         
         // If no webhook URL is set, return error

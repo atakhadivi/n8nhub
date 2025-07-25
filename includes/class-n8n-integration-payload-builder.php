@@ -447,21 +447,51 @@ class N8N_Integration_Payload_Builder {
      * @return   array                 The enhanced test data payload.
      */
     public static function build_test_payload($trigger, $test_data) {
+        // If test data is not an array, initialize it
+        if (!is_array($test_data)) {
+            $test_data = array();
+        }
+        
         // If test data already contains an ID, use it to fetch real data
-        if (isset($test_data['id'])) {
+        if (isset($test_data['id']) && !empty($test_data['id'])) {
+            $id = absint($test_data['id']);
             switch ($trigger) {
                 case 'post_save':
-                    return self::build_post_payload($test_data['id']);
+                    $post = get_post($id);
+                    if ($post) {
+                        $enhanced_data = self::build_post_payload($id);
+                        // Preserve is_update flag if it exists
+                        if (isset($test_data['is_update'])) {
+                            $enhanced_data['is_update'] = (bool) $test_data['is_update'];
+                        }
+                        return $enhanced_data;
+                    }
+                    break;
                     
                 case 'user_register':
-                    return self::build_user_payload($test_data['id']);
+                    if (get_userdata($id)) {
+                        return self::build_user_payload($id);
+                    }
+                    break;
                     
                 case 'comment_post':
-                    return self::build_comment_payload($test_data['id']);
+                    $comment = get_comment($id);
+                    if ($comment) {
+                        $enhanced_data = self::build_comment_payload($id);
+                        // Preserve comment_approved flag if it exists
+                        if (isset($test_data['comment_approved'])) {
+                            $enhanced_data['comment_approved'] = $test_data['comment_approved'];
+                        }
+                        return $enhanced_data;
+                    }
+                    break;
                     
                 case 'woocommerce_new_order':
                     if (class_exists('WooCommerce')) {
-                        return self::build_woocommerce_order_payload($test_data['id']);
+                        $order = wc_get_order($id);
+                        if ($order) {
+                            return self::build_woocommerce_order_payload($id);
+                        }
                     }
                     break;
             }

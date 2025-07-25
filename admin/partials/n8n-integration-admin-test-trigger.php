@@ -19,29 +19,29 @@ require_once plugin_dir_path(dirname(dirname(__FILE__))) . 'includes/class-n8n-i
 // Get the available triggers
 $available_triggers = array(
     'post_save' => array(
-        'name' => __('Post Save', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a post is created or updated', 'n8n-wordpress-integration')
+        'name' => esc_html__('Post Save', 'n8n-integration'),
+        'description' => esc_html__('Triggered when a post is created or updated', 'n8n-integration')
     ),
     'user_register' => array(
-        'name' => __('User Register', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a new user is registered', 'n8n-wordpress-integration')
+        'name' => esc_html__('User Register', 'n8n-integration'),
+        'description' => esc_html__('Triggered when a new user is registered', 'n8n-integration')
     ),
     'comment_post' => array(
-        'name' => __('Comment Post', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a new comment is posted', 'n8n-wordpress-integration')
+        'name' => esc_html__('Comment Post', 'n8n-integration'),
+        'description' => esc_html__('Triggered when a new comment is posted', 'n8n-integration')
     )
 );
 
 // Add WooCommerce trigger if WooCommerce is active
 if (class_exists('WooCommerce')) {
     $available_triggers['woocommerce_new_order'] = array(
-        'name' => __('WooCommerce New Order', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a new WooCommerce order is created', 'n8n-wordpress-integration')
+        'name' => esc_html__('WooCommerce New Order', 'n8n-integration'),
+        'description' => esc_html__('Triggered when a new WooCommerce order is created', 'n8n-integration')
     );
 }
 
 // Get a recent post for testing if available
-$recent_posts = get_posts(array('numberposts' => 1));
+$recent_posts = wp_get_recent_posts(array('numberposts' => 1, 'post_status' => 'publish'), OBJECT);
 $post_id = !empty($recent_posts) ? $recent_posts[0]->ID : 1;
 
 // Get a recent user for testing if available
@@ -49,7 +49,7 @@ $recent_users = get_users(array('number' => 1, 'orderby' => 'ID', 'order' => 'DE
 $user_id = !empty($recent_users) ? $recent_users[0]->ID : 1;
 
 // Get a recent comment for testing if available
-$recent_comments = get_comments(array('number' => 1));
+$recent_comments = get_comments(array('number' => 1, 'status' => 'approve'));
 $comment_id = !empty($recent_comments) ? $recent_comments[0]->comment_ID : 1;
 
 // Get a recent order for testing if available
@@ -73,7 +73,11 @@ foreach ($available_triggers as $trigger_id => &$trigger) {
             $trigger['test_data'] = N8N_Integration_Payload_Builder::build_comment_payload($comment_id);
             break;
         case 'woocommerce_new_order':
-            $trigger['test_data'] = N8N_Integration_Payload_Builder::build_woocommerce_order_payload($order_id);
+            if (class_exists('WooCommerce')) {
+                $trigger['test_data'] = N8N_Integration_Payload_Builder::build_woocommerce_order_payload($order_id);
+            } else {
+                $trigger['test_data'] = array('error' => 'WooCommerce not active');
+            }
             break;
     }
 }
@@ -85,51 +89,51 @@ $webhook_urls = get_option('n8n_integration_webhook_urls', array());
 ?>
 
 <div class="wrap">
-    <h1><?php echo esc_html(get_admin_page_title()); ?> - <?php _e('Test Triggers', 'n8n-wordpress-integration'); ?></h1>
+    <h1><?php echo esc_html(get_admin_page_title()); ?> - <?php esc_html_e('Test Triggers', 'n8n-integration'); ?></h1>
     
     <div class="notice notice-info">
-        <p><?php _e('Use this page to test your n8n webhook triggers without having to perform the actual WordPress actions.', 'n8n-wordpress-integration'); ?></p>
+        <p><?php esc_html_e('Use this page to test your n8n webhook triggers without having to perform the actual WordPress actions.', 'n8n-integration'); ?></p>
     </div>
     
     <div class="card">
-        <h2><?php _e('Test Trigger', 'n8n-wordpress-integration'); ?></h2>
+        <h2><?php esc_html_e('Test Trigger', 'n8n-integration'); ?></h2>
         
         <form id="n8n-integration-test-trigger-form">
             <table class="form-table">
                 <tr>
                     <th scope="row">
-                        <label for="trigger-type"><?php _e('Select Trigger', 'n8n-wordpress-integration'); ?></label>
+                        <label for="trigger-type"><?php esc_html_e('Select Trigger', 'n8n-integration'); ?></label>
                     </th>
                     <td>
                         <select id="trigger-type" name="trigger_type">
                             <?php foreach ($available_triggers as $trigger_id => $trigger) : ?>
                                 <option value="<?php echo esc_attr($trigger_id); ?>" <?php echo !in_array($trigger_id, $enabled_triggers) ? 'disabled' : ''; ?>>
-                                    <?php echo esc_html($trigger['name']); ?> <?php echo !in_array($trigger_id, $enabled_triggers) ? '(' . __('Not Enabled', 'n8n-wordpress-integration') . ')' : ''; ?>
+                                    <?php echo esc_html($trigger['name']); ?> <?php echo !in_array($trigger_id, $enabled_triggers) ? '(' . esc_html__('Not Enabled', 'n8n-integration') . ')' : ''; ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <p class="description"><?php _e('Select the trigger you want to test. Disabled options are triggers that are not currently enabled in your settings.', 'n8n-wordpress-integration'); ?></p>
+                        <p class="description"><?php esc_html_e('Select the trigger you want to test. Disabled options are triggers that are not currently enabled in your settings.', 'n8n-integration'); ?></p>
                     </td>
                 </tr>
                 <tr>
                     <th scope="row">
-                        <label for="test-data"><?php _e('Test Data', 'n8n-wordpress-integration'); ?></label>
+                        <label for="test-data"><?php esc_html_e('Test Data', 'n8n-integration'); ?></label>
                     </th>
                     <td>
                         <textarea id="test-data" name="test_data" rows="10" class="large-text code"></textarea>
-                        <p class="description"><?php _e('This is the data that will be sent to your n8n webhook. You can modify it if needed.', 'n8n-wordpress-integration'); ?></p>
+                        <p class="description"><?php esc_html_e('This is the data that will be sent to your n8n webhook. You can modify it if needed.', 'n8n-integration'); ?></p>
                     </td>
                 </tr>
             </table>
             
             <p class="submit">
-                <button type="submit" id="test-trigger" class="button button-primary"><?php _e('Send Test Trigger', 'n8n-wordpress-integration'); ?></button>
+                <button type="submit" id="test-trigger" class="button button-primary"><?php esc_html_e('Send Test Trigger', 'n8n-integration'); ?></button>
                 <span class="spinner" style="float: none; margin-top: 0;"></span>
             </p>
         </form>
         
         <div id="test-result" style="display: none;">
-            <h3><?php _e('Test Result', 'n8n-wordpress-integration'); ?></h3>
+            <h3><?php esc_html_e('Test Result', 'n8n-integration'); ?></h3>
             <div id="test-result-content" class="code-example">
                 <pre></pre>
             </div>
@@ -137,17 +141,17 @@ $webhook_urls = get_option('n8n_integration_webhook_urls', array());
     </div>
     
     <div class="card">
-        <h2><?php _e('How to Use Test Triggers', 'n8n-wordpress-integration'); ?></h2>
+        <h2><?php esc_html_e('How to Use Test Triggers', 'n8n-integration'); ?></h2>
         
         <ol>
-            <li><?php _e('Make sure you have set up and enabled the trigger you want to test in the Triggers page.', 'n8n-wordpress-integration'); ?></li>
-            <li><?php _e('Select the trigger type from the dropdown above.', 'n8n-wordpress-integration'); ?></li>
-            <li><?php _e('Review and modify the test data if needed.', 'n8n-wordpress-integration'); ?></li>
-            <li><?php _e('Click "Send Test Trigger" to send the data to your n8n webhook.', 'n8n-wordpress-integration'); ?></li>
-            <li><?php _e('Check the result to see if the webhook was successfully delivered.', 'n8n-wordpress-integration'); ?></li>
+            <li><?php esc_html_e('Make sure you have set up and enabled the trigger you want to test in the Triggers page.', 'n8n-integration'); ?></li>
+            <li><?php esc_html_e('Select the trigger type from the dropdown above.', 'n8n-integration'); ?></li>
+            <li><?php esc_html_e('Review and modify the test data if needed.', 'n8n-integration'); ?></li>
+            <li><?php esc_html_e('Click "Send Test Trigger" to send the data to your n8n webhook.', 'n8n-integration'); ?></li>
+            <li><?php esc_html_e('Check the result to see if the webhook was successfully delivered.', 'n8n-integration'); ?></li>
         </ol>
         
-        <p><?php _e('This is useful for testing your n8n workflows without having to perform the actual WordPress actions like creating posts or users.', 'n8n-wordpress-integration'); ?></p>
+        <p><?php esc_html_e('This is useful for testing your n8n workflows without having to perform the actual WordPress actions like creating posts or users.', 'n8n-integration'); ?></p>
     </div>
 </div>
 
@@ -186,7 +190,7 @@ $webhook_urls = get_option('n8n_integration_webhook_urls', array());
                 data: {
                     action: 'n8n_integration_test_trigger',
                     nonce: n8n_integration_admin.nonce,
-                    trigger: triggerId,
+                    trigger_id: triggerId,
                     test_data: testData
                 },
                 success: function(response) {
