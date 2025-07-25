@@ -546,12 +546,26 @@ class N8N_Integration_API {
      * @return   \WP_REST_Response    The response object.
      */
     public function get_settings() {
+        $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
+        
+        // Convert old format to new format if needed
+        foreach ($webhook_urls as $trigger => $webhook_data) {
+            if (is_string($webhook_data)) {
+                $webhook_urls[$trigger] = array(
+                    'url' => $webhook_data,
+                    'name' => '',
+                    'description' => ''
+                );
+            }
+        }
+        
         $settings = array(
             'n8n_url' => \get_option('n8n_integration_url', ''),
             'api_key' => \get_option('n8n_integration_api_key', ''),
             'n8n_api_key' => \get_option('n8n_integration_n8n_api_key', ''),
+            'debug_mode' => \get_option('n8n_integration_debug_mode', false),
             'enabled_triggers' => \get_option('n8n_integration_enabled_triggers', array()),
-            'webhook_urls' => \get_option('n8n_integration_webhook_urls', array()),
+            'webhook_urls' => $webhook_urls,
         );
         
         return new \WP_REST_Response($settings, 200);
@@ -582,6 +596,11 @@ class N8N_Integration_API {
             \update_option('n8n_integration_n8n_api_key', \sanitize_text_field($params['n8n_api_key']));
         }
         
+        // Update debug mode if provided
+        if (isset($params['debug_mode'])) {
+            \update_option('n8n_integration_debug_mode', (bool) $params['debug_mode']);
+        }
+        
         // Update enabled triggers if provided
         if (isset($params['enabled_triggers']) && is_array($params['enabled_triggers'])) {
             \update_option('n8n_integration_enabled_triggers', array_map('\sanitize_text_field', $params['enabled_triggers']));
@@ -589,10 +608,28 @@ class N8N_Integration_API {
         
         // Update webhook URLs if provided
         if (isset($params['webhook_urls']) && is_array($params['webhook_urls'])) {
-            $webhook_urls = array();
-            foreach ($params['webhook_urls'] as $trigger => $url) {
-                $webhook_urls[\sanitize_text_field($trigger)] = \esc_url_raw($url);
+            $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
+            
+            foreach ($params['webhook_urls'] as $trigger => $webhook_data) {
+                $trigger = \sanitize_text_field($trigger);
+                
+                // If webhook_data is a string, it's just the URL (backward compatibility)
+                if (is_string($webhook_data)) {
+                    $webhook_urls[$trigger] = array(
+                        'url' => \esc_url_raw($webhook_data),
+                        'name' => '',
+                        'description' => ''
+                    );
+                } else if (is_array($webhook_data)) {
+                    // New format with name, description, and URL
+                    $webhook_urls[$trigger] = array(
+                        'url' => isset($webhook_data['url']) ? \esc_url_raw($webhook_data['url']) : '',
+                        'name' => isset($webhook_data['name']) ? \sanitize_text_field($webhook_data['name']) : '',
+                        'description' => isset($webhook_data['description']) ? \sanitize_textarea_field($webhook_data['description']) : ''
+                    );
+                }
             }
+            
             \update_option('n8n_integration_webhook_urls', $webhook_urls);
         }
         
@@ -649,7 +686,7 @@ class N8N_Integration_API {
     }
 
     /**
-     * Trigger when a post is saved.
+     * Trigger post save event.
      *
      * @since    1.0.0
      * @param    int       $post_id    The post ID.
@@ -657,25 +694,23 @@ class N8N_Integration_API {
      * @param    bool      $update     Whether this is an existing post being updated.
      */
     public function trigger_post_save($post_id, $post, $update) {
-        // Don't trigger for auto-drafts or post revisions
-        if ($post->post_status === 'auto-draft' || \wp_is_post_revision($post_id)) {
+        // Skip auto-drafts and revisions
+        if (wp_is_post_autosave($post_id) || wp_is_post_revision($post_id) || $post->post_status === 'auto-draft') {
             return;
         }
         
-        // Get enabled triggers
+        // Check if this trigger is enabled
         $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
-        
-        // Check if post save trigger is enabled
         if (!in_array('post_save', $enabled_triggers)) {
             return;
         }
         
-        // Get webhook URL for post save trigger
+        // Get webhook URL data
         $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
-        $webhook_url = isset($webhook_urls['post_save']) ? $webhook_urls['post_save'] : '';
+        $webhook_data = isset($webhook_urls['post_save']) ? $webhook_urls['post_save'] : '';
         
         // If no webhook URL is set, return
-        if (empty($webhook_url)) {
+        if (empty($webhook_data) || (is_array($webhook_data) && empty($webhook_data['url']))) {
             return;
         }
         
@@ -730,7 +765,7 @@ class N8N_Integration_API {
         }
         
         // Send data to n8n webhook
-        $this->send_webhook_data($webhook_url, array(
+        $this->send_webhook_data($webhook_data, array(
             'trigger' => 'post_save',
             'data' => $post_data,
         ));
@@ -743,20 +778,18 @@ class N8N_Integration_API {
      * @param    int    $user_id    The user ID.
      */
     public function trigger_user_register($user_id) {
-        // Get enabled triggers
+        // Check if this trigger is enabled
         $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
-        
-        // Check if user register trigger is enabled
         if (!in_array('user_register', $enabled_triggers)) {
             return;
         }
         
-        // Get webhook URL for user register trigger
+        // Get webhook URL data
         $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
-        $webhook_url = isset($webhook_urls['user_register']) ? $webhook_urls['user_register'] : '';
+        $webhook_data = isset($webhook_urls['user_register']) ? $webhook_urls['user_register'] : '';
         
         // If no webhook URL is set, return
-        if (empty($webhook_url)) {
+        if (empty($webhook_data) || (is_array($webhook_data) && empty($webhook_data['url']))) {
             return;
         }
         
@@ -789,7 +822,7 @@ class N8N_Integration_API {
         }
         
         // Send data to n8n webhook
-        $this->send_webhook_data($webhook_url, array(
+        $this->send_webhook_data($webhook_data, array(
             'trigger' => 'user_register',
             'data' => $user_data,
         ));
@@ -804,20 +837,18 @@ class N8N_Integration_API {
      * @param    array      $comment_data    Comment data.
      */
     public function trigger_comment_post($comment_id, $comment_approved, $comment_data) {
-        // Get enabled triggers
+        // Check if this trigger is enabled
         $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
-        
-        // Check if comment post trigger is enabled
         if (!in_array('comment_post', $enabled_triggers)) {
             return;
         }
         
-        // Get webhook URL for comment post trigger
+        // Get webhook URL data
         $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
-        $webhook_url = isset($webhook_urls['comment_post']) ? $webhook_urls['comment_post'] : '';
+        $webhook_data = isset($webhook_urls['comment_post']) ? $webhook_urls['comment_post'] : '';
         
         // If no webhook URL is set, return
-        if (empty($webhook_url)) {
+        if (empty($webhook_data) || (is_array($webhook_data) && empty($webhook_data['url']))) {
             return;
         }
         
@@ -850,7 +881,7 @@ class N8N_Integration_API {
         }
         
         // Send data to n8n webhook
-        $this->send_webhook_data($webhook_url, array(
+        $this->send_webhook_data($webhook_data, array(
             'trigger' => 'comment_post',
             'data' => $comment_data,
         ));
@@ -868,20 +899,18 @@ class N8N_Integration_API {
             return;
         }
         
-        // Get enabled triggers
+        // Check if this trigger is enabled
         $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
-        
-        // Check if WooCommerce new order trigger is enabled
         if (!in_array('woocommerce_new_order', $enabled_triggers)) {
             return;
         }
         
-        // Get webhook URL for WooCommerce new order trigger
+        // Get webhook URL data
         $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
-        $webhook_url = isset($webhook_urls['woocommerce_new_order']) ? $webhook_urls['woocommerce_new_order'] : '';
+        $webhook_data = isset($webhook_urls['woocommerce_new_order']) ? $webhook_urls['woocommerce_new_order'] : '';
         
         // If no webhook URL is set, return
-        if (empty($webhook_url)) {
+        if (empty($webhook_data) || (is_array($webhook_data) && empty($webhook_data['url']))) {
             return;
         }
         
@@ -943,7 +972,7 @@ class N8N_Integration_API {
         }
         
         // Send data to n8n webhook
-        $this->send_webhook_data($webhook_url, array(
+        $this->send_webhook_data($webhook_data, array(
             'trigger' => 'woocommerce_new_order',
             'data' => $order_data,
         ));
@@ -953,10 +982,32 @@ class N8N_Integration_API {
      * Send data to n8n webhook.
      *
      * @since    1.0.0
-     * @param    string    $webhook_url    The webhook URL.
-     * @param    array     $data           The data to send.
+     * @param    string|array    $webhook_url    The webhook URL or webhook data array.
+     * @param    array           $data           The data to send.
+     * @return   array                           Response data including success status and message.
      */
     private function send_webhook_data($webhook_url, $data) {
+        // Handle both string URLs and webhook data arrays
+        $url = '';
+        $webhook_name = '';
+        
+        if (is_string($webhook_url)) {
+            $url = $webhook_url;
+        } elseif (is_array($webhook_url) && isset($webhook_url['url'])) {
+            $url = $webhook_url['url'];
+            $webhook_name = isset($webhook_url['name']) ? $webhook_url['name'] : '';
+        }
+        
+        // If no valid URL, return error
+        if (empty($url)) {
+            $error_message = 'n8n Integration: No webhook URL provided';
+            error_log($error_message);
+            return array(
+                'success' => false,
+                'message' => $error_message
+            );
+        }
+        
         // Add site information
         $data['site'] = array(
             'name' => \get_bloginfo('name'),
@@ -969,8 +1020,13 @@ class N8N_Integration_API {
         // Add timestamp
         $data['timestamp'] = \current_time('timestamp');
         
+        // Add webhook name if available
+        if (!empty($webhook_name)) {
+            $data['webhook_name'] = $webhook_name;
+        }
+        
         // Send data to webhook URL
-        $response = \wp_remote_post($webhook_url, array(
+        $response = \wp_remote_post($url, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
             ),
@@ -978,12 +1034,63 @@ class N8N_Integration_API {
             'timeout' => 15,
         ));
         
-        // Log error if request failed
+        // Log the request
+        $this->log_webhook_request($url, $data, $response);
+        
+        // Check if request was successful
         if (\is_wp_error($response)) {
-            error_log('n8n Integration: Failed to send webhook data - ' . $response->get_error_message());
+            $error_message = 'n8n Integration: Failed to send webhook data - ' . $response->get_error_message();
+            error_log($error_message);
+            return array(
+                'success' => false,
+                'message' => $error_message
+            );
         }
+        
+        return array(
+            'success' => true,
+            'message' => 'Webhook data sent successfully',
+            'response' => $response
+        );
     }
 
+    /**
+     * Log webhook request for debugging and monitoring.
+     *
+     * @since    1.0.0
+     * @param    string    $url        The webhook URL.
+     * @param    array     $data       The data sent.
+     * @param    mixed     $response   The response from the webhook.
+     */
+    private function log_webhook_request($url, $data, $response) {
+        // Check if logging is enabled
+        $debug_mode = \get_option('n8n_integration_debug_mode', false);
+        if (!$debug_mode) {
+            return;
+        }
+        
+        // Prepare log data
+        $log_entry = array(
+            'timestamp' => \current_time('mysql'),
+            'url' => $url,
+            'data' => $data,
+            'success' => !\is_wp_error($response),
+            'response' => \is_wp_error($response) ? $response->get_error_message() : \wp_remote_retrieve_response_code($response)
+        );
+        
+        // Get existing logs
+        $logs = \get_option('n8n_integration_webhook_logs', array());
+        
+        // Add new log entry (limit to 100 entries)
+        array_unshift($logs, $log_entry);
+        if (count($logs) > 100) {
+            $logs = array_slice($logs, 0, 100);
+        }
+        
+        // Save logs
+        \update_option('n8n_integration_webhook_logs', $logs);
+    }
+    
     /**
      * Get n8n API URL.
      *

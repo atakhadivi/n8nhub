@@ -17,6 +17,7 @@ if (!defined('WPINC')) {
 $n8n_url = get_option('n8n_integration_url', '');
 $api_key = get_option('n8n_integration_api_key', '');
 $n8n_api_key = get_option('n8n_integration_n8n_api_key', '');
+$debug_mode = get_option('n8n_integration_debug_mode', false);
 
 // Generate a new API key if none exists
 if (empty($api_key)) {
@@ -68,6 +69,18 @@ $webhook_url = rest_url('n8n-integration/v1/webhook');
                         <td>
                             <input name="n8n_api_key" type="text" id="n8n_api_key" value="<?php echo esc_attr($n8n_api_key); ?>" class="regular-text">
                             <p class="description"><?php _e('Enter your n8n API key to enable WordPress to communicate with n8n. This is required for bidirectional communication.', 'n8n-wordpress-integration'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="debug_mode"><?php _e('Debug Mode', 'n8n-wordpress-integration'); ?></label>
+                        </th>
+                        <td>
+                            <label for="debug_mode">
+                                <input name="debug_mode" type="checkbox" id="debug_mode" value="1" <?php checked($debug_mode); ?>>
+                                <?php _e('Enable webhook logging', 'n8n-wordpress-integration'); ?>
+                            </label>
+                            <p class="description"><?php _e('When enabled, all webhook requests and responses will be logged for debugging purposes. This can be useful for troubleshooting but may impact performance.', 'n8n-wordpress-integration'); ?></p>
                         </td>
                     </tr>
                 </tbody>
@@ -223,6 +236,7 @@ $webhook_url = rest_url('n8n-integration/v1/webhook');
             var n8n_url = $('#n8n_url').val();
             var api_key = $('#api_key').val();
             var n8n_api_key = $('#n8n_api_key').val();
+            var debug_mode = $('#debug_mode').is(':checked') ? 1 : 0;
             
             $.ajax({
                 url: n8n_integration_admin.rest_url + 'settings',
@@ -233,7 +247,8 @@ $webhook_url = rest_url('n8n-integration/v1/webhook');
                 data: {
                     n8n_url: n8n_url,
                     api_key: api_key,
-                    n8n_api_key: n8n_api_key
+                    n8n_api_key: n8n_api_key,
+                    debug_mode: debug_mode
                 },
                 success: function(response) {
                     if (response.success) {

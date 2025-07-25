@@ -18,24 +18,35 @@ $n8n_url = get_option('n8n_integration_url', '');
 $enabled_triggers = get_option('n8n_integration_enabled_triggers', array());
 $webhook_urls = get_option('n8n_integration_webhook_urls', array());
 
+// Convert old format webhook URLs to new format if needed
+foreach ($webhook_urls as $trigger_id => $webhook_data) {
+    if (is_string($webhook_data)) {
+        $webhook_urls[$trigger_id] = array(
+            'url' => $webhook_data,
+            'name' => '',
+            'description' => ''
+        );
+    }
+}
+
 // Define available triggers
 $available_triggers = array(
     'post_save' => array(
         'name' => __('Post Save', 'n8n-wordpress-integration'),
         'description' => __('Triggered when a post is created or updated', 'n8n-wordpress-integration'),
-        'webhook_url' => isset($webhook_urls['post_save']) ? $webhook_urls['post_save'] : '',
+        'webhook_data' => isset($webhook_urls['post_save']) ? $webhook_urls['post_save'] : array('url' => '', 'name' => '', 'description' => ''),
         'enabled' => in_array('post_save', $enabled_triggers),
     ),
     'user_register' => array(
         'name' => __('User Register', 'n8n-wordpress-integration'),
         'description' => __('Triggered when a new user is registered', 'n8n-wordpress-integration'),
-        'webhook_url' => isset($webhook_urls['user_register']) ? $webhook_urls['user_register'] : '',
+        'webhook_data' => isset($webhook_urls['user_register']) ? $webhook_urls['user_register'] : array('url' => '', 'name' => '', 'description' => ''),
         'enabled' => in_array('user_register', $enabled_triggers),
     ),
     'comment_post' => array(
         'name' => __('Comment Post', 'n8n-wordpress-integration'),
         'description' => __('Triggered when a new comment is posted', 'n8n-wordpress-integration'),
-        'webhook_url' => isset($webhook_urls['comment_post']) ? $webhook_urls['comment_post'] : '',
+        'webhook_data' => isset($webhook_urls['comment_post']) ? $webhook_urls['comment_post'] : array('url' => '', 'name' => '', 'description' => ''),
         'enabled' => in_array('comment_post', $enabled_triggers),
     ),
 );
@@ -45,7 +56,7 @@ if (class_exists('WooCommerce')) {
     $available_triggers['woocommerce_new_order'] = array(
         'name' => __('WooCommerce New Order', 'n8n-wordpress-integration'),
         'description' => __('Triggered when a new WooCommerce order is created', 'n8n-wordpress-integration'),
-        'webhook_url' => isset($webhook_urls['woocommerce_new_order']) ? $webhook_urls['woocommerce_new_order'] : '',
+        'webhook_data' => isset($webhook_urls['woocommerce_new_order']) ? $webhook_urls['woocommerce_new_order'] : array('url' => '', 'name' => '', 'description' => ''),
         'enabled' => in_array('woocommerce_new_order', $enabled_triggers),
     );
 }
@@ -76,6 +87,8 @@ if (class_exists('WooCommerce')) {
                         <th><?php _e('Trigger', 'n8n-wordpress-integration'); ?></th>
                         <th><?php _e('Description', 'n8n-wordpress-integration'); ?></th>
                         <th><?php _e('n8n Webhook URL', 'n8n-wordpress-integration'); ?></th>
+                        <th><?php _e('Webhook Name', 'n8n-wordpress-integration'); ?></th>
+                        <th><?php _e('Webhook Description', 'n8n-wordpress-integration'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -91,7 +104,13 @@ if (class_exists('WooCommerce')) {
                                 <?php echo esc_html($trigger['description']); ?>
                             </td>
                             <td>
-                                <input type="url" name="webhook_urls[<?php echo esc_attr($trigger_id); ?>]" value="<?php echo esc_attr($trigger['webhook_url']); ?>" class="regular-text" placeholder="<?php echo esc_attr(sprintf(__('e.g., %s', 'n8n-wordpress-integration'), $n8n_url . '/webhook/123456')); ?>">
+                                <input type="url" name="webhook_urls[<?php echo esc_attr($trigger_id); ?>][url]" value="<?php echo esc_attr($trigger['webhook_data']['url']); ?>" class="regular-text" placeholder="<?php echo esc_attr(sprintf(__('e.g., %s', 'n8n-wordpress-integration'), $n8n_url . '/webhook/123456')); ?>">
+                            </td>
+                            <td>
+                                <input type="text" name="webhook_urls[<?php echo esc_attr($trigger_id); ?>][name]" value="<?php echo esc_attr($trigger['webhook_data']['name']); ?>" class="regular-text" placeholder="<?php _e('Webhook name (optional)', 'n8n-wordpress-integration'); ?>">
+                            </td>
+                            <td>
+                                <input type="text" name="webhook_urls[<?php echo esc_attr($trigger_id); ?>][description]" value="<?php echo esc_attr($trigger['webhook_data']['description']); ?>" class="regular-text" placeholder="<?php _e('Webhook description (optional)', 'n8n-wordpress-integration'); ?>">
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -140,9 +159,23 @@ if (class_exists('WooCommerce')) {
                 if (field.name === 'enabled_triggers[]') {
                     data.enabled_triggers.push(field.value);
                 } else if (field.name.startsWith('webhook_urls[')) {
-                    var trigger = field.name.match(/webhook_urls\[(.*?)\]/);
-                    if (trigger && trigger[1]) {
-                        data.webhook_urls[trigger[1]] = field.value;
+                    // Extract trigger ID and field type (url, name, description)
+                    var matches = field.name.match(/webhook_urls\[(.*?)\]\[(.*?)\]/);
+                    if (matches && matches[1] && matches[2]) {
+                        var triggerId = matches[1];
+                        var fieldType = matches[2];
+                        
+                        // Initialize webhook data object if it doesn't exist
+                        if (!data.webhook_urls[triggerId]) {
+                            data.webhook_urls[triggerId] = {
+                                url: '',
+                                name: '',
+                                description: ''
+                            };
+                        }
+                        
+                        // Set the appropriate field
+                        data.webhook_urls[triggerId][fieldType] = field.value;
                     }
                 }
             });
@@ -181,9 +214,36 @@ if (class_exists('WooCommerce')) {
     .widefat {
         margin-top: 10px;
         margin-bottom: 20px;
+        table-layout: fixed;
+        width: 100%;
     }
     
-    .widefat input[type="url"] {
+    .widefat th:nth-child(1) {
+        width: 5%;
+    }
+    
+    .widefat th:nth-child(2) {
+        width: 10%;
+    }
+    
+    .widefat th:nth-child(3) {
+        width: 15%;
+    }
+    
+    .widefat th:nth-child(4) {
+        width: 30%;
+    }
+    
+    .widefat th:nth-child(5) {
+        width: 20%;
+    }
+    
+    .widefat th:nth-child(6) {
+        width: 20%;
+    }
+    
+    .widefat input[type="url"],
+    .widefat input[type="text"] {
         width: 100%;
     }
 </style>

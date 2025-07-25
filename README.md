@@ -45,14 +45,16 @@ Perform these WordPress actions from n8n:
 1. Go to WordPress Admin > n8n Integration > Settings
 2. Enter your n8n URL (e.g., http://localhost:5678 or your hosted n8n instance)
 3. Generate or enter an API key
-4. Save settings and test the connection
+4. Optionally, enable Debug Mode to log webhook requests for troubleshooting
+5. Save settings and test the connection
 
 ### 2. Triggers (WordPress to n8n)
 
 1. Go to WordPress Admin > n8n Integration > Triggers
 2. Enable the triggers you want to use
 3. For each trigger, enter the webhook URL from your n8n workflow
-4. Save the trigger settings
+4. Optionally, add a name and description for each webhook URL for better organization
+5. Save the trigger settings
 
 ### 3. Actions (n8n to WordPress)
 
@@ -68,7 +70,17 @@ Perform these WordPress actions from n8n:
 3. Copy the webhook URL
 4. In WordPress, go to n8n Integration > Triggers
 5. Enable the desired trigger and paste the webhook URL
-6. Save the settings
+6. Optionally, add a name and description for the webhook URL
+7. Save the settings
+
+### Using Debug Mode
+
+1. Go to WordPress Admin > n8n Integration > Settings
+2. Enable the Debug Mode checkbox
+3. Save settings
+4. When debug mode is enabled, all webhook requests will be logged
+5. Logs include timestamp, URL, data sent, success status, and response
+6. The plugin stores up to 100 log entries
 
 ### Setting up an n8n to WordPress Action
 
