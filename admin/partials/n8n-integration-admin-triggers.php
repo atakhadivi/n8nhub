@@ -32,24 +32,40 @@ foreach ($webhook_urls as $trigger_id => $webhook_data) {
 // Define available triggers
 $available_triggers = array(
     'post_save' => array(
-        'name' => __('Post Save', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a post is created or updated', 'n8n-wordpress-integration'),
+        'name' => __('Post Save', 'n8n-integration'),
+        'description' => __('Triggered when a post is created or updated', 'n8n-integration'),
         'webhook_data' => isset($webhook_urls['post_save']) ? $webhook_urls['post_save'] : array('url' => '', 'name' => '', 'description' => ''),
         'enabled' => in_array('post_save', $enabled_triggers),
     ),
     'user_register' => array(
-        'name' => __('User Register', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a new user is registered', 'n8n-wordpress-integration'),
+        'name' => __('User Register', 'n8n-integration'),
+        'description' => __('Triggered when a new user is registered', 'n8n-integration'),
         'webhook_data' => isset($webhook_urls['user_register']) ? $webhook_urls['user_register'] : array('url' => '', 'name' => '', 'description' => ''),
         'enabled' => in_array('user_register', $enabled_triggers),
     ),
     'comment_post' => array(
-        'name' => __('Comment Post', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a new comment is posted', 'n8n-wordpress-integration'),
+        'name' => __('Comment Post', 'n8n-integration'),
+        'description' => __('Triggered when a new comment is posted', 'n8n-integration'),
         'webhook_data' => isset($webhook_urls['comment_post']) ? $webhook_urls['comment_post'] : array('url' => '', 'name' => '', 'description' => ''),
         'enabled' => in_array('comment_post', $enabled_triggers),
     ),
 );
+
+// Add custom post type triggers
+// Get all registered post types except built-in ones
+// We'll still keep the default 'post_save' trigger for backward compatibility
+$post_types = get_post_types(array('_builtin' => false), 'objects');
+
+foreach ($post_types as $post_type) {
+    $trigger_id = 'post_save_' . $post_type->name;
+    $available_triggers[$trigger_id] = array(
+        'name' => sprintf(__('%s Save', 'n8n-integration'), $post_type->labels->singular_name),
+        'description' => sprintf(__('Triggered when a %s is created or updated', 'n8n-integration'), strtolower($post_type->labels->singular_name)),
+        'webhook_data' => isset($webhook_urls[$trigger_id]) ? $webhook_urls[$trigger_id] : array('url' => '', 'name' => '', 'description' => ''),
+        'enabled' => in_array($trigger_id, $enabled_triggers),
+        'post_type' => $post_type->name,
+    );
+}
 
 // Add WooCommerce trigger if WooCommerce is active
 if (class_exists('WooCommerce')) {

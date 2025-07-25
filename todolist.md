@@ -19,7 +19,7 @@ This document outlines the step-by-step implementation plan for the WP n8n Integ
 - [x] Implement basic comment event triggers
 - [x] Implement basic WooCommerce event triggers
 - [ ] Expand post event triggers
-  - [ ] Add support for custom post types
+  - [x] Add support for custom post types
   - [ ] Add more granular control over post events
 - [ ] Expand user event triggers
   - [ ] Add user profile update events

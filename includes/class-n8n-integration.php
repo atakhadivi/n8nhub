@@ -191,6 +191,10 @@ class N8N_Integration {
         // Register AJAX handlers
         $this->loader->add_action('wp_ajax_n8n_integration_clear_logs', $plugin_api, 'clear_logs');
         $this->loader->add_action('wp_ajax_n8n_integration_test_trigger', $plugin_api, 'test_trigger');
+        
+        // The save_post hook above will handle all post types, including custom post types
+        // No need to register additional hooks for custom post types as the trigger_post_save method
+        // will check the post type and trigger the appropriate event
 
     }
 

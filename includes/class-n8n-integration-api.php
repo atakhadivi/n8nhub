@@ -194,7 +194,6 @@ class N8N_Integration_API {
                     'message' => 'Invalid action',
                 ), 400);
         }
-    }
 
     /**
      * Create a new post.
@@ -714,31 +713,45 @@ class N8N_Integration_API {
             return;
         }
         
-        // Check if this trigger is enabled
+        // Get enabled triggers and webhook URLs
         $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
-        if (!in_array('post_save', $enabled_triggers)) {
-            return;
-        }
-        
-        // Get webhook URL data
         $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
-        $webhook_data = isset($webhook_urls['post_save']) ? $webhook_urls['post_save'] : '';
-        
-        // If no webhook URL is set, return
-        if (empty($webhook_data) || (is_array($webhook_data) && empty($webhook_data['url']))) {
-            return;
-        }
         
         // Use the payload builder to create enhanced post data
         require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-n8n-integration-payload-builder.php';
         $post_data = N8N_Integration_Payload_Builder::build_post_payload($post_id);
         
-        // Add trigger-specific data
-        $post_data['trigger'] = 'post_save';
+        // Add common trigger data
         $post_data['is_update'] = $update;
         
-        // Send data to n8n webhook
-        $this->send_webhook_data($webhook_data, $post_data);
+        // Check for general post_save trigger (for backward compatibility)
+        if (in_array('post_save', $enabled_triggers)) {
+            $webhook_data = isset($webhook_urls['post_save']) ? $webhook_urls['post_save'] : '';
+            
+            if (!empty($webhook_data) && (is_string($webhook_data) || !empty($webhook_data['url']))) {
+                // Add trigger-specific data
+                $post_data['trigger'] = 'post_save';
+                
+                // Send data to n8n webhook
+                $this->send_webhook_data($webhook_data, $post_data);
+            }
+        }
+        
+        // Check for custom post type specific trigger
+        $post_type = $post->post_type;
+        $custom_trigger_id = 'post_save_' . $post_type;
+        
+        if (in_array($custom_trigger_id, $enabled_triggers)) {
+            $webhook_data = isset($webhook_urls[$custom_trigger_id]) ? $webhook_urls[$custom_trigger_id] : '';
+            
+            if (!empty($webhook_data) && (is_string($webhook_data) || !empty($webhook_data['url']))) {
+                // Add trigger-specific data
+                $post_data['trigger'] = $custom_trigger_id;
+                
+                // Send data to n8n webhook
+                $this->send_webhook_data($webhook_data, $post_data);
+            }
+        }
     }
 
     /**

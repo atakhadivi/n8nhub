@@ -32,6 +32,17 @@ $available_triggers = array(
     )
 );
 
+// Add custom post type triggers
+$post_types = get_post_types(array('_builtin' => false), 'objects');
+foreach ($post_types as $post_type) {
+    $trigger_id = 'post_save_' . $post_type->name;
+    $available_triggers[$trigger_id] = array(
+        'name' => sprintf(esc_html__('%s Save', 'n8n-integration'), $post_type->labels->singular_name),
+        'description' => sprintf(esc_html__('Triggered when a %s is created or updated', 'n8n-integration'), strtolower($post_type->labels->singular_name)),
+        'post_type' => $post_type->name
+    );
+}
+
 // Add WooCommerce trigger if WooCommerce is active
 if (class_exists('WooCommerce')) {
     $available_triggers['woocommerce_new_order'] = array(
@@ -61,24 +72,43 @@ if (class_exists('WooCommerce')) {
 
 // Generate test data using payload builder
 foreach ($available_triggers as $trigger_id => &$trigger) {
-    switch ($trigger_id) {
-        case 'post_save':
-            $trigger['test_data'] = N8N_Integration_Payload_Builder::build_post_payload($post_id);
-            $trigger['test_data']['is_update'] = true;
-            break;
-        case 'user_register':
-            $trigger['test_data'] = N8N_Integration_Payload_Builder::build_user_payload($user_id);
-            break;
-        case 'comment_post':
-            $trigger['test_data'] = N8N_Integration_Payload_Builder::build_comment_payload($comment_id);
-            break;
-        case 'woocommerce_new_order':
-            if (class_exists('WooCommerce')) {
-                $trigger['test_data'] = N8N_Integration_Payload_Builder::build_woocommerce_order_payload($order_id);
-            } else {
-                $trigger['test_data'] = array('error' => 'WooCommerce not active');
-            }
-            break;
+    // Check if this is a custom post type trigger
+    if (strpos($trigger_id, 'post_save_') === 0 && isset($trigger['post_type'])) {
+        // Try to get a recent post of this type
+        $custom_posts = get_posts(array(
+            'post_type' => $trigger['post_type'],
+            'numberposts' => 1,
+            'post_status' => 'publish'
+        ));
+        
+        $custom_post_id = !empty($custom_posts) ? $custom_posts[0]->ID : $post_id;
+        $trigger['test_data'] = N8N_Integration_Payload_Builder::build_post_payload($custom_post_id);
+        $trigger['test_data']['is_update'] = true;
+        $trigger['test_data']['trigger'] = $trigger_id;
+    } else {
+        switch ($trigger_id) {
+            case 'post_save':
+                $trigger['test_data'] = N8N_Integration_Payload_Builder::build_post_payload($post_id);
+                $trigger['test_data']['is_update'] = true;
+                $trigger['test_data']['trigger'] = 'post_save';
+                break;
+            case 'user_register':
+                $trigger['test_data'] = N8N_Integration_Payload_Builder::build_user_payload($user_id);
+                $trigger['test_data']['trigger'] = 'user_register';
+                break;
+            case 'comment_post':
+                $trigger['test_data'] = N8N_Integration_Payload_Builder::build_comment_payload($comment_id);
+                $trigger['test_data']['trigger'] = 'comment_post';
+                break;
+            case 'woocommerce_new_order':
+                if (class_exists('WooCommerce')) {
+                    $trigger['test_data'] = N8N_Integration_Payload_Builder::build_woocommerce_order_payload($order_id);
+                    $trigger['test_data']['trigger'] = 'woocommerce_new_order';
+                } else {
+                    $trigger['test_data'] = array('error' => 'WooCommerce not active');
+                }
+                break;
+        }
     }
 }
 
