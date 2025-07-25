@@ -10,7 +10,7 @@ This document outlines the step-by-step implementation plan for the WP n8n Integ
 - [x] Enhance webhook URL manager
   - [x] Add ability to name and describe webhook URLs
   - [x] Improve UI for managing multiple webhooks
-  - [ ] Add webhook testing functionality
+  - [x] Add webhook testing functionality
 
 ## Phase 2: Event Triggers Implementation
 
@@ -61,7 +61,7 @@ This document outlines the step-by-step implementation plan for the WP n8n Integ
   - [x] Log timestamps
   - [x] Log payload data
 - [x] Add log storage options (file or database)
-- [ ] Implement test trigger functionality
+- [x] Implement test trigger functionality
 - [x] Add log viewer in admin UI
 
 ## Phase 6: Documentation and Testing

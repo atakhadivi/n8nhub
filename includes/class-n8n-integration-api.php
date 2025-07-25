@@ -740,7 +740,6 @@ class N8N_Integration_API {
         // Send data to n8n webhook
         $this->send_webhook_data($webhook_data, $post_data);
     }
-    }
 
     /**
      * Trigger when a new user is registered.
@@ -885,68 +884,16 @@ class N8N_Integration_API {
             return;
         }
         
-        // Get order data
-        $order = \wc_get_order($order_id);
+        // Use the payload builder to create enhanced order data
+        require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-n8n-integration-payload-builder.php';
+        $order_data = N8N_Integration_Payload_Builder::build_woocommerce_order_payload($order_id);
         
-        // Prepare order data
-        $order_data = array(
-            'id' => $order_id,
-            'number' => $order->get_order_number(),
-            'status' => $order->get_status(),
-            'date_created' => $order->get_date_created()->format('Y-m-d H:i:s'),
-            'total' => $order->get_total(),
-            'currency' => $order->get_currency(),
-            'payment_method' => $order->get_payment_method(),
-            'payment_method_title' => $order->get_payment_method_title(),
-            'customer_id' => $order->get_customer_id(),
-            'customer_note' => $order->get_customer_note(),
-            'billing' => array(
-                'first_name' => $order->get_billing_first_name(),
-                'last_name' => $order->get_billing_last_name(),
-                'company' => $order->get_billing_company(),
-                'address_1' => $order->get_billing_address_1(),
-                'address_2' => $order->get_billing_address_2(),
-                'city' => $order->get_billing_city(),
-                'state' => $order->get_billing_state(),
-                'postcode' => $order->get_billing_postcode(),
-                'country' => $order->get_billing_country(),
-                'email' => $order->get_billing_email(),
-                'phone' => $order->get_billing_phone(),
-            ),
-            'shipping' => array(
-                'first_name' => $order->get_shipping_first_name(),
-                'last_name' => $order->get_shipping_last_name(),
-                'company' => $order->get_shipping_company(),
-                'address_1' => $order->get_shipping_address_1(),
-                'address_2' => $order->get_shipping_address_2(),
-                'city' => $order->get_shipping_city(),
-                'state' => $order->get_shipping_state(),
-                'postcode' => $order->get_shipping_postcode(),
-                'country' => $order->get_shipping_country(),
-            ),
-            'items' => array(),
-        );
-        
-        // Add order items
-        foreach ($order->get_items() as $item_id => $item) {
-            $product = $item->get_product();
-            $order_data['items'][] = array(
-                'id' => $item_id,
-                'name' => $item->get_name(),
-                'product_id' => $item->get_product_id(),
-                'variation_id' => $item->get_variation_id(),
-                'quantity' => $item->get_quantity(),
-                'subtotal' => $item->get_subtotal(),
-                'total' => $item->get_total(),
-                'sku' => $product ? $product->get_sku() : '',
-            );
-        }
+        // Add trigger-specific data
+        $order_data['trigger'] = 'woocommerce_new_order';
         
         // Send data to n8n webhook
-        $this->send_webhook_data($webhook_data, array(
-            'trigger' => 'woocommerce_new_order',
-            'data' => $order_data,
-        ));
+        $this->send_webhook_data($webhook_data, $order_data);
+    }
     }
 
     /**
@@ -1098,7 +1045,7 @@ class N8N_Integration_API {
         }
         
         // Get trigger ID and test data
-        $trigger_id = isset($_POST['trigger_id']) ? \sanitize_text_field($_POST['trigger_id']) : '';
+        $trigger_id = isset($_POST['trigger']) ? \sanitize_text_field($_POST['trigger']) : '';
         $test_data_json = isset($_POST['test_data']) ? \wp_unslash($_POST['test_data']) : '';
         
         // Check if trigger ID is valid
@@ -1127,10 +1074,14 @@ class N8N_Integration_API {
             wp_send_json_error('Invalid JSON in test data: ' . json_last_error_msg());
         }
         
+        // Use the payload builder to enhance the test data
+        require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-n8n-integration-payload-builder.php';
+        $enhanced_data = N8N_Integration_Payload_Builder::build_test_payload($trigger_id, $test_data);
+        
         // Send data to n8n webhook
         $result = $this->send_webhook_data($webhook_data, array(
             'trigger' => $trigger_id,
-            'data' => $test_data,
+            'data' => $enhanced_data,
             'test' => true
         ));
         

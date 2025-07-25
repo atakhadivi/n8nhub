@@ -437,4 +437,37 @@ class N8N_Integration_Payload_Builder {
         
         return $order_data;
     }
+    
+    /**
+     * Build a test payload for a specific trigger.
+     *
+     * @since    1.0.0
+     * @param    string    $trigger    The trigger type.
+     * @param    array     $test_data  The test data provided by the user.
+     * @return   array                 The enhanced test data payload.
+     */
+    public static function build_test_payload($trigger, $test_data) {
+        // If test data already contains an ID, use it to fetch real data
+        if (isset($test_data['id'])) {
+            switch ($trigger) {
+                case 'post_save':
+                    return self::build_post_payload($test_data['id']);
+                    
+                case 'user_register':
+                    return self::build_user_payload($test_data['id']);
+                    
+                case 'comment_post':
+                    return self::build_comment_payload($test_data['id']);
+                    
+                case 'woocommerce_new_order':
+                    if (class_exists('WooCommerce')) {
+                        return self::build_woocommerce_order_payload($test_data['id']);
+                    }
+                    break;
+            }
+        }
+        
+        // If no ID or couldn't fetch real data, return the test data as is
+        return $test_data;
+    }
 }

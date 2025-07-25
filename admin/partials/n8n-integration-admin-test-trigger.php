@@ -13,69 +13,22 @@ if (!defined('WPINC')) {
     die;
 }
 
+// Load the payload builder
+require_once plugin_dir_path(dirname(dirname(__FILE__))) . 'includes/class-n8n-integration-payload-builder.php';
+
 // Get the available triggers
 $available_triggers = array(
     'post_save' => array(
         'name' => __('Post Save', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a post is created or updated', 'n8n-wordpress-integration'),
-        'test_data' => array(
-            'post_id' => 1,
-            'title' => 'Test Post',
-            'content' => 'This is a test post content.',
-            'excerpt' => 'Test excerpt',
-            'status' => 'publish',
-            'type' => 'post',
-            'author' => 1,
-            'date' => current_time('mysql'),
-            'modified' => current_time('mysql'),
-            'url' => get_site_url() . '/?p=1',
-            'is_update' => true,
-            'meta' => array(
-                'test_meta_key' => 'test_meta_value'
-            ),
-            'categories' => array(
-                array(
-                    'id' => 1,
-                    'name' => 'Uncategorized',
-                    'slug' => 'uncategorized'
-                )
-            ),
-            'tags' => array()
-        )
+        'description' => __('Triggered when a post is created or updated', 'n8n-wordpress-integration')
     ),
     'user_register' => array(
         'name' => __('User Register', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a new user is registered', 'n8n-wordpress-integration'),
-        'test_data' => array(
-            'user_id' => 1,
-            'username' => 'testuser',
-            'email' => 'test@example.com',
-            'first_name' => 'Test',
-            'last_name' => 'User',
-            'role' => 'subscriber',
-            'registered_date' => current_time('mysql'),
-            'meta' => array(
-                'test_meta_key' => 'test_meta_value'
-            )
-        )
+        'description' => __('Triggered when a new user is registered', 'n8n-wordpress-integration')
     ),
     'comment_post' => array(
         'name' => __('Comment Post', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a new comment is posted', 'n8n-wordpress-integration'),
-        'test_data' => array(
-            'comment_id' => 1,
-            'comment_post_id' => 1,
-            'comment_author' => 'Test Commenter',
-            'comment_author_email' => 'commenter@example.com',
-            'comment_author_url' => 'https://example.com',
-            'comment_content' => 'This is a test comment.',
-            'comment_type' => 'comment',
-            'comment_parent' => 0,
-            'user_id' => 0,
-            'comment_date' => current_time('mysql'),
-            'comment_approved' => 1,
-            'post_title' => 'Test Post'
-        )
+        'description' => __('Triggered when a new comment is posted', 'n8n-wordpress-integration')
     )
 );
 
@@ -83,74 +36,46 @@ $available_triggers = array(
 if (class_exists('WooCommerce')) {
     $available_triggers['woocommerce_new_order'] = array(
         'name' => __('WooCommerce New Order', 'n8n-wordpress-integration'),
-        'description' => __('Triggered when a new WooCommerce order is created', 'n8n-wordpress-integration'),
-        'test_data' => array(
-            'order_id' => 1,
-            'order_number' => '1',
-            'order_status' => 'processing',
-            'order_total' => '99.99',
-            'order_currency' => 'USD',
-            'order_date' => current_time('mysql'),
-            'payment_method' => 'cod',
-            'payment_method_title' => 'Cash on Delivery',
-            'customer' => array(
-                'id' => 1,
-                'first_name' => 'Test',
-                'last_name' => 'Customer',
-                'email' => 'customer@example.com',
-                'phone' => '123-456-7890'
-            ),
-            'billing' => array(
-                'first_name' => 'Test',
-                'last_name' => 'Customer',
-                'company' => 'Test Company',
-                'address_1' => '123 Test St',
-                'address_2' => 'Apt 4',
-                'city' => 'Test City',
-                'state' => 'TS',
-                'postcode' => '12345',
-                'country' => 'US',
-                'email' => 'customer@example.com',
-                'phone' => '123-456-7890'
-            ),
-            'shipping' => array(
-                'first_name' => 'Test',
-                'last_name' => 'Customer',
-                'company' => 'Test Company',
-                'address_1' => '123 Test St',
-                'address_2' => 'Apt 4',
-                'city' => 'Test City',
-                'state' => 'TS',
-                'postcode' => '12345',
-                'country' => 'US'
-            ),
-            'line_items' => array(
-                array(
-                    'product_id' => 1,
-                    'name' => 'Test Product',
-                    'quantity' => 2,
-                    'subtotal' => '79.98',
-                    'total' => '79.98',
-                    'price' => '39.99'
-                )
-            ),
-            'shipping_lines' => array(
-                array(
-                    'method_id' => 'flat_rate',
-                    'method_title' => 'Flat Rate',
-                    'total' => '10.00'
-                )
-            ),
-            'tax_lines' => array(
-                array(
-                    'rate_id' => 1,
-                    'label' => 'Tax',
-                    'compound' => false,
-                    'tax_total' => '10.01'
-                )
-            )
-        )
+        'description' => __('Triggered when a new WooCommerce order is created', 'n8n-wordpress-integration')
     );
+}
+
+// Get a recent post for testing if available
+$recent_posts = get_posts(array('numberposts' => 1));
+$post_id = !empty($recent_posts) ? $recent_posts[0]->ID : 1;
+
+// Get a recent user for testing if available
+$recent_users = get_users(array('number' => 1, 'orderby' => 'ID', 'order' => 'DESC'));
+$user_id = !empty($recent_users) ? $recent_users[0]->ID : 1;
+
+// Get a recent comment for testing if available
+$recent_comments = get_comments(array('number' => 1));
+$comment_id = !empty($recent_comments) ? $recent_comments[0]->comment_ID : 1;
+
+// Get a recent order for testing if available
+$order_id = 1;
+if (class_exists('WooCommerce')) {
+    $recent_orders = wc_get_orders(array('limit' => 1));
+    $order_id = !empty($recent_orders) ? $recent_orders[0]->get_id() : 1;
+}
+
+// Generate test data using payload builder
+foreach ($available_triggers as $trigger_id => &$trigger) {
+    switch ($trigger_id) {
+        case 'post_save':
+            $trigger['test_data'] = N8N_Integration_Payload_Builder::build_post_payload($post_id);
+            $trigger['test_data']['is_update'] = true;
+            break;
+        case 'user_register':
+            $trigger['test_data'] = N8N_Integration_Payload_Builder::build_user_payload($user_id);
+            break;
+        case 'comment_post':
+            $trigger['test_data'] = N8N_Integration_Payload_Builder::build_comment_payload($comment_id);
+            break;
+        case 'woocommerce_new_order':
+            $trigger['test_data'] = N8N_Integration_Payload_Builder::build_woocommerce_order_payload($order_id);
+            break;
+    }
 }
 
 // Get enabled triggers and webhook URLs
@@ -261,7 +186,7 @@ $webhook_urls = get_option('n8n_integration_webhook_urls', array());
                 data: {
                     action: 'n8n_integration_test_trigger',
                     nonce: n8n_integration_admin.nonce,
-                    trigger_id: triggerId,
+                    trigger: triggerId,
                     test_data: testData
                 },
                 success: function(response) {
