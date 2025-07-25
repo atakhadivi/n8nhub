@@ -16,6 +16,7 @@ if (!defined('WPINC')) {
 // Get current settings
 $n8n_url = get_option('n8n_integration_url', '');
 $api_key = get_option('n8n_integration_api_key', '');
+$n8n_api_key = get_option('n8n_integration_n8n_api_key', '');
 
 // Generate a new API key if none exists
 if (empty($api_key)) {
@@ -52,12 +53,21 @@ $webhook_url = rest_url('n8n-integration/v1/webhook');
                     </tr>
                     <tr>
                         <th scope="row">
-                            <label for="api_key"><?php _e('API Key', 'n8n-wordpress-integration'); ?></label>
+                            <label for="api_key"><?php _e('WordPress API Key', 'n8n-wordpress-integration'); ?></label>
                         </th>
                         <td>
                             <input name="api_key" type="text" id="api_key" value="<?php echo esc_attr($api_key); ?>" class="regular-text" readonly>
                             <button type="button" id="generate-api-key" class="button button-secondary"><?php _e('Generate New Key', 'n8n-wordpress-integration'); ?></button>
                             <p class="description"><?php _e('This API key is used to authenticate requests from n8n to WordPress.', 'n8n-wordpress-integration'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="n8n_api_key"><?php _e('n8n API Key', 'n8n-wordpress-integration'); ?></label>
+                        </th>
+                        <td>
+                            <input name="n8n_api_key" type="text" id="n8n_api_key" value="<?php echo esc_attr($n8n_api_key); ?>" class="regular-text">
+                            <p class="description"><?php _e('Enter your n8n API key to enable WordPress to communicate with n8n. This is required for bidirectional communication.', 'n8n-wordpress-integration'); ?></p>
                         </td>
                     </tr>
                 </tbody>
@@ -212,6 +222,7 @@ $webhook_url = rest_url('n8n-integration/v1/webhook');
             
             var n8n_url = $('#n8n_url').val();
             var api_key = $('#api_key').val();
+            var n8n_api_key = $('#n8n_api_key').val();
             
             $.ajax({
                 url: n8n_integration_admin.rest_url + 'settings',
@@ -221,7 +232,8 @@ $webhook_url = rest_url('n8n-integration/v1/webhook');
                 },
                 data: {
                     n8n_url: n8n_url,
-                    api_key: api_key
+                    api_key: api_key,
+                    n8n_api_key: n8n_api_key
                 },
                 success: function(response) {
                     if (response.success) {
@@ -316,4 +328,249 @@ $webhook_url = rest_url('n8n-integration/v1/webhook');
         margin-top: 10px;
         margin-bottom: 20px;
     }
+    
+    #workflow-execution-results {
+        margin-top: 15px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-left: 4px solid #007cba;
+        display: none;
+    }
+    
+    .workflow-status {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 4px;
+    }
+    
+    .workflow-status.success {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+    
+    .workflow-status.error {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+    
+    .workflow-status.pending {
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+        color: #856404;
+    }
+    
+    #workflow-list {
+        margin-top: 15px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
 </style>
+
+<div class="card">
+    <h2><?php _e('Execute n8n Workflows', 'n8n-wordpress-integration'); ?></h2>
+    
+    <p><?php _e('Execute n8n workflows directly from WordPress. This requires a valid n8n URL and API key.', 'n8n-wordpress-integration'); ?></p>
+    
+    <div id="workflow-list-container">
+        <button type="button" id="load-workflows" class="button button-secondary"><?php _e('Load Workflows', 'n8n-wordpress-integration'); ?></button>
+        <div id="workflow-list"></div>
+    </div>
+    
+    <form id="execute-workflow-form" style="display: none;">
+        <table class="form-table" role="presentation">
+            <tbody>
+                <tr>
+                    <th scope="row">
+                        <label for="workflow_id"><?php _e('Workflow', 'n8n-wordpress-integration'); ?></label>
+                    </th>
+                    <td>
+                        <select name="workflow_id" id="workflow_id" class="regular-text"></select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="workflow_data"><?php _e('Input Data (JSON)', 'n8n-wordpress-integration'); ?></label>
+                    </th>
+                    <td>
+                        <textarea name="workflow_data" id="workflow_data" class="large-text code" rows="5">{}</textarea>
+                        <p class="description"><?php _e('Enter the input data for the workflow in JSON format.', 'n8n-wordpress-integration'); ?></p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p class="submit">
+            <button type="submit" id="execute-workflow" class="button button-primary"><?php _e('Execute Workflow', 'n8n-wordpress-integration'); ?></button>
+        </p>
+    </form>
+    
+    <div id="workflow-execution-results"></div>
+</div>
+
+<script type="text/javascript">
+    jQuery(document).ready(function($) {
+        // Load workflows
+        $('#load-workflows').on('click', function() {
+            var button = $(this);
+            button.prop('disabled', true).text('<?php _e("Loading...", "n8n-wordpress-integration"); ?>');
+            
+            $.ajax({
+                url: n8n_integration_admin.rest_url + 'workflows',
+                method: 'GET',
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader('X-WP-Nonce', n8n_integration_admin.rest_nonce);
+                },
+                success: function(response) {
+                    button.prop('disabled', false).text('<?php _e("Refresh Workflows", "n8n-wordpress-integration"); ?>');
+                    
+                    if (response.success && response.workflows) {
+                        var workflowSelect = $('#workflow_id');
+                        workflowSelect.empty();
+                        
+                        $.each(response.workflows, function(index, workflow) {
+                            workflowSelect.append($('<option>', {
+                                value: workflow.id,
+                                text: workflow.name
+                            }));
+                        });
+                        
+                        $('#execute-workflow-form').show();
+                    } else {
+                        $('#workflow-list').html('<div class="notice notice-error inline"><p>' + (response.message || '<?php _e("Failed to load workflows", "n8n-wordpress-integration"); ?>') + '</p></div>');
+                    }
+                },
+                error: function(xhr) {
+                    button.prop('disabled', false).text('<?php _e("Load Workflows", "n8n-wordpress-integration"); ?>');
+                    $('#workflow-list').html('<div class="notice notice-error inline"><p><?php _e("Failed to load workflows. Please check your n8n URL and API key.", "n8n-wordpress-integration"); ?></p></div>');
+                }
+            });
+        });
+        
+        // Execute workflow
+        $('#execute-workflow-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            var workflowId = $('#workflow_id').val();
+            var workflowData = $('#workflow_data').val();
+            
+            if (!workflowId) {
+                alert('<?php _e("Please select a workflow", "n8n-wordpress-integration"); ?>');
+                return;
+            }
+            
+            try {
+                // Parse JSON to validate
+                var dataObj = JSON.parse(workflowData);
+            } catch (error) {
+                alert('<?php _e("Invalid JSON data", "n8n-wordpress-integration"); ?>');
+                return;
+            }
+            
+            $('#execute-workflow').prop('disabled', true).text('<?php _e("Executing...", "n8n-wordpress-integration"); ?>');
+            
+            $.ajax({
+                url: n8n_integration_admin.rest_url + 'execute-workflow',
+                method: 'POST',
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader('X-WP-Nonce', n8n_integration_admin.rest_nonce);
+                },
+                data: JSON.stringify({
+                    workflow_id: workflowId,
+                    data: dataObj
+                }),
+                contentType: 'application/json',
+                success: function(response) {
+                    $('#execute-workflow').prop('disabled', false).text('<?php _e("Execute Workflow", "n8n-wordpress-integration"); ?>');
+                    
+                    if (response.success) {
+                        var executionId = response.execution_id;
+                        
+                        $('#workflow-execution-results').html(
+                            '<h3><?php _e("Execution Results", "n8n-wordpress-integration"); ?></h3>' +
+                            '<div class="workflow-status pending">' +
+                            '<?php _e("Workflow execution started. Execution ID:", "n8n-wordpress-integration"); ?> ' + executionId +
+                            '</div>'
+                        ).show();
+                        
+                        // Poll for execution status if we have an execution ID
+                        if (executionId) {
+                            checkWorkflowStatus(executionId);
+                        }
+                    } else {
+                        $('#workflow-execution-results').html(
+                            '<h3><?php _e("Execution Results", "n8n-wordpress-integration"); ?></h3>' +
+                            '<div class="workflow-status error">' +
+                            '<?php _e("Failed to execute workflow:", "n8n-wordpress-integration"); ?> ' + (response.message || '<?php _e("Unknown error", "n8n-wordpress-integration"); ?>') +
+                            '</div>'
+                        ).show();
+                    }
+                },
+                error: function(xhr) {
+                    $('#execute-workflow').prop('disabled', false).text('<?php _e("Execute Workflow", "n8n-wordpress-integration"); ?>');
+                    
+                    $('#workflow-execution-results').html(
+                        '<h3><?php _e("Execution Results", "n8n-wordpress-integration"); ?></h3>' +
+                        '<div class="workflow-status error">' +
+                        '<?php _e("Failed to execute workflow. Please check your n8n URL and API key.", "n8n-wordpress-integration"); ?>' +
+                        '</div>'
+                    ).show();
+                }
+            });
+        });
+        
+        // Function to check workflow execution status
+        function checkWorkflowStatus(executionId) {
+            $.ajax({
+                url: n8n_integration_admin.rest_url + 'workflow-status/' + executionId,
+                method: 'GET',
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader('X-WP-Nonce', n8n_integration_admin.rest_nonce);
+                },
+                success: function(response) {
+                    if (response.success && response.status) {
+                        var status = response.status;
+                        var statusClass = 'pending';
+                        var statusText = '<?php _e("Pending", "n8n-wordpress-integration"); ?>';
+                        
+                        if (status.finished) {
+                            statusClass = status.data && status.data.resultData && status.data.resultData.error ? 'error' : 'success';
+                            statusText = statusClass === 'success' ? '<?php _e("Completed", "n8n-wordpress-integration"); ?>' : '<?php _e("Failed", "n8n-wordpress-integration"); ?>';
+                        }
+                        
+                        $('#workflow-execution-results .workflow-status')
+                            .removeClass('pending success error')
+                            .addClass(statusClass)
+                            .html(
+                                '<?php _e("Workflow execution", "n8n-wordpress-integration"); ?>: <strong>' + statusText + '</strong><br>' +
+                                '<?php _e("Execution ID:", "n8n-wordpress-integration"); ?> ' + executionId + '<br><br>' +
+                                '<pre>' + JSON.stringify(status, null, 2) + '</pre>'
+                            );
+                        
+                        // If not finished, poll again after 2 seconds
+                        if (!status.finished) {
+                            setTimeout(function() {
+                                checkWorkflowStatus(executionId);
+                            }, 2000);
+                        }
+                    } else {
+                        $('#workflow-execution-results .workflow-status')
+                            .removeClass('pending success error')
+                            .addClass('error')
+                            .html(
+                                '<?php _e("Failed to get workflow status:", "n8n-wordpress-integration"); ?> ' + 
+                                (response.message || '<?php _e("Unknown error", "n8n-wordpress-integration"); ?>')
+                            );
+                    }
+                },
+                error: function(xhr) {
+                    $('#workflow-execution-results .workflow-status')
+                        .removeClass('pending success error')
+                        .addClass('error')
+                        .html('<?php _e("Failed to get workflow status. Please check your n8n URL and API key.", "n8n-wordpress-integration"); ?>');
+                }
+            });
+        }
+    });
+</script>

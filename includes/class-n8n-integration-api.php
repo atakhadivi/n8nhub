@@ -74,6 +74,27 @@ class N8N_Integration_API {
             'callback' => array($this, 'test_connection'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
+        
+        // Register route for getting n8n workflows
+        register_rest_route('n8n-integration/v1', '/workflows', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_workflows'),
+            'permission_callback' => array($this, 'check_admin_permission'),
+        ));
+        
+        // Register route for executing n8n workflow
+        register_rest_route('n8n-integration/v1', '/execute-workflow', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'execute_workflow'),
+            'permission_callback' => array($this, 'check_admin_permission'),
+        ));
+        
+        // Register route for getting n8n workflow execution status
+        register_rest_route('n8n-integration/v1', '/workflow-status/(?P<execution_id>[\w-]+)', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_workflow_status'),
+            'permission_callback' => array($this, 'check_admin_permission'),
+        ));
     }
 
     /**
@@ -523,6 +544,7 @@ class N8N_Integration_API {
         $settings = array(
             'n8n_url' => get_option('n8n_integration_url', ''),
             'api_key' => get_option('n8n_integration_api_key', ''),
+            'n8n_api_key' => get_option('n8n_integration_n8n_api_key', ''),
             'enabled_triggers' => get_option('n8n_integration_enabled_triggers', array()),
             'webhook_urls' => get_option('n8n_integration_webhook_urls', array()),
         );
@@ -548,6 +570,11 @@ class N8N_Integration_API {
         // Update API key if provided
         if (isset($params['api_key'])) {
             update_option('n8n_integration_api_key', sanitize_text_field($params['api_key']));
+        }
+        
+        // Update n8n API key if provided
+        if (isset($params['n8n_api_key'])) {
+            update_option('n8n_integration_n8n_api_key', sanitize_text_field($params['n8n_api_key']));
         }
         
         // Update enabled triggers if provided
@@ -950,6 +977,186 @@ class N8N_Integration_API {
         if (is_wp_error($response)) {
             error_log('n8n Integration: Failed to send webhook data - ' . $response->get_error_message());
         }
+    }
+
+    /**
+     * Get n8n API URL.
+     *
+     * @since    1.0.0
+     * @return   string    The n8n API URL.
+     */
+    private function get_n8n_api_url() {
+        $n8n_url = get_option('n8n_integration_url', '');
+        
+        // If URL doesn't end with a slash, add it
+        if (!empty($n8n_url) && substr($n8n_url, -1) !== '/') {
+            $n8n_url .= '/';
+        }
+        
+        return $n8n_url . 'api/v1/';
+    }
+
+    /**
+     * Get n8n API key.
+     *
+     * @since    1.0.0
+     * @return   string    The n8n API key.
+     */
+    private function get_n8n_api_key() {
+        return get_option('n8n_integration_n8n_api_key', '');
+    }
+
+    /**
+     * Make a request to the n8n API.
+     *
+     * @since    1.0.0
+     * @param    string    $endpoint    The API endpoint.
+     * @param    string    $method      The HTTP method (GET, POST, etc.).
+     * @param    array     $data        The data to send (for POST, PUT, etc.).
+     * @return   array|WP_Error         The response or error.
+     */
+    private function request_n8n_api($endpoint, $method = 'GET', $data = null) {
+        $api_url = $this->get_n8n_api_url();
+        $api_key = $this->get_n8n_api_key();
+        
+        if (empty($api_url)) {
+            return new WP_Error('n8n_api_error', 'n8n URL is not configured');
+        }
+        
+        $url = $api_url . $endpoint;
+        
+        $args = array(
+            'method' => $method,
+            'headers' => array(
+                'Content-Type' => 'application/json',
+            ),
+            'timeout' => 30,
+        );
+        
+        // Add API key if available
+        if (!empty($api_key)) {
+            $args['headers']['X-N8N-API-KEY'] = $api_key;
+        }
+        
+        // Add data for POST, PUT, etc.
+        if ($data !== null && in_array($method, array('POST', 'PUT', 'PATCH'))) {
+            $args['body'] = json_encode($data);
+        }
+        
+        $response = wp_remote_request($url, $args);
+        
+        if (is_wp_error($response)) {
+            error_log('n8n Integration: API request failed - ' . $response->get_error_message());
+            return $response;
+        }
+        
+        $response_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        
+        if ($response_code < 200 || $response_code >= 300) {
+            error_log('n8n Integration: API request failed with code ' . $response_code . ' - ' . $response_body);
+            return new WP_Error('n8n_api_error', 'API request failed with code ' . $response_code, array(
+                'status' => $response_code,
+                'body' => $response_body,
+            ));
+        }
+        
+        return json_decode($response_body, true);
+    }
+
+    /**
+     * Get n8n workflows.
+     *
+     * @since    1.0.0
+     * @param    WP_REST_Request    $request    The request object.
+     * @return   WP_REST_Response               The response object.
+     */
+    public function get_workflows($request) {
+        $response = $this->request_n8n_api('workflows');
+        
+        if (is_wp_error($response)) {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => $response->get_error_message(),
+            ), 500);
+        }
+        
+        return new WP_REST_Response(array(
+            'success' => true,
+            'workflows' => $response,
+        ), 200);
+    }
+
+    /**
+     * Execute n8n workflow.
+     *
+     * @since    1.0.0
+     * @param    WP_REST_Request    $request    The request object.
+     * @return   WP_REST_Response               The response object.
+     */
+    public function execute_workflow($request) {
+        $params = $request->get_params();
+        
+        // Check required parameters
+        if (!isset($params['workflow_id'])) {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Missing workflow_id parameter',
+            ), 400);
+        }
+        
+        $workflow_id = sanitize_text_field($params['workflow_id']);
+        $data = isset($params['data']) ? $params['data'] : array();
+        
+        // Add WordPress site information
+        $data['site'] = array(
+            'name' => get_bloginfo('name'),
+            'url' => get_site_url(),
+            'admin_email' => get_bloginfo('admin_email'),
+            'version' => get_bloginfo('version'),
+            'language' => get_bloginfo('language'),
+        );
+        
+        // Execute workflow
+        $response = $this->request_n8n_api('workflows/' . $workflow_id . '/execute', 'POST', $data);
+        
+        if (is_wp_error($response)) {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => $response->get_error_message(),
+            ), 500);
+        }
+        
+        return new WP_REST_Response(array(
+            'success' => true,
+            'execution_id' => isset($response['executionId']) ? $response['executionId'] : null,
+            'data' => $response,
+        ), 200);
+    }
+
+    /**
+     * Get n8n workflow execution status.
+     *
+     * @since    1.0.0
+     * @param    WP_REST_Request    $request    The request object.
+     * @return   WP_REST_Response               The response object.
+     */
+    public function get_workflow_status($request) {
+        $execution_id = $request['execution_id'];
+        
+        $response = $this->request_n8n_api('executions/' . $execution_id);
+        
+        if (is_wp_error($response)) {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => $response->get_error_message(),
+            ), 500);
+        }
+        
+        return new WP_REST_Response(array(
+            'success' => true,
+            'status' => $response,
+        ), 200);
     }
 
 }
