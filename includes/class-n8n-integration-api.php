@@ -1,5 +1,10 @@
 <?php
 
+// If this file is called directly, abort.
+if (!defined('WPINC')) {
+    die;
+}
+
 /**
  * The API functionality of the plugin.
  *
@@ -101,7 +106,7 @@ class N8N_Integration_API {
      * Check if the webhook request has valid authentication.
      *
      * @since    1.0.0
-     * @param    WP_REST_Request    $request    The request object.
+     * @param    \WP_REST_Request    $request    The request object.
      * @return   bool                           Whether the request has valid authentication.
      */
     public function check_webhook_permission($request) {
@@ -133,8 +138,8 @@ class N8N_Integration_API {
      * Handle incoming webhook from n8n.
      *
      * @since    1.0.0
-     * @param    WP_REST_Request    $request    The request object.
-     * @return   WP_REST_Response               The response object.
+     * @param    \WP_REST_Request    $request    The request object.
+     * @return   \WP_REST_Response               The response object.
      */
     public function handle_webhook($request) {
         // Get the request parameters
@@ -142,7 +147,7 @@ class N8N_Integration_API {
         
         // Check if the action parameter is set
         if (!isset($params['action'])) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Missing action parameter',
             ), 400);
@@ -169,7 +174,7 @@ class N8N_Integration_API {
                 return $this->handle_custom_action($params);
                 
             default:
-                return new WP_REST_Response(array(
+                return new \WP_REST_Response(array(
                     'success' => false,
                     'message' => 'Invalid action',
                 ), 400);
@@ -181,12 +186,12 @@ class N8N_Integration_API {
      *
      * @since    1.0.0
      * @param    array    $params    The request parameters.
-     * @return   WP_REST_Response    The response object.
+     * @return   \WP_REST_Response    The response object.
      */
     private function create_post($params) {
         // Check required parameters
         if (!isset($params['title']) || !isset($params['content'])) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Missing required parameters',
             ), 400);
@@ -194,19 +199,19 @@ class N8N_Integration_API {
         
         // Set up the post data
         $post_data = array(
-            'post_title'    => sanitize_text_field($params['title']),
-            'post_content'  => wp_kses_post($params['content']),
-            'post_status'   => isset($params['status']) ? sanitize_text_field($params['status']) : 'draft',
-            'post_author'   => isset($params['author_id']) ? intval($params['author_id']) : get_current_user_id(),
-            'post_type'     => isset($params['post_type']) ? sanitize_text_field($params['post_type']) : 'post',
+            'post_title'    => \sanitize_text_field($params['title']),
+            'post_content'  => \wp_kses_post($params['content']),
+            'post_status'   => isset($params['status']) ? \sanitize_text_field($params['status']) : 'draft',
+            'post_author'   => isset($params['author_id']) ? intval($params['author_id']) : \get_current_user_id(),
+            'post_type'     => isset($params['post_type']) ? \sanitize_text_field($params['post_type']) : 'post',
         );
         
         // Insert the post
-        $post_id = wp_insert_post($post_data);
+        $post_id = \wp_insert_post($post_data);
         
         // Check if the post was created successfully
-        if (is_wp_error($post_id)) {
-            return new WP_REST_Response(array(
+        if (\is_wp_error($post_id)) {
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => $post_id->get_error_message(),
             ), 500);
@@ -215,21 +220,21 @@ class N8N_Integration_API {
         // Set post meta if provided
         if (isset($params['meta']) && is_array($params['meta'])) {
             foreach ($params['meta'] as $meta_key => $meta_value) {
-                update_post_meta($post_id, sanitize_text_field($meta_key), sanitize_text_field($meta_value));
+                \update_post_meta($post_id, \sanitize_text_field($meta_key), \sanitize_text_field($meta_value));
             }
         }
         
         // Set post categories if provided
         if (isset($params['categories']) && is_array($params['categories'])) {
-            wp_set_post_categories($post_id, array_map('intval', $params['categories']));
+            \wp_set_post_categories($post_id, array_map('intval', $params['categories']));
         }
         
         // Set post tags if provided
         if (isset($params['tags']) && is_array($params['tags'])) {
-            wp_set_post_tags($post_id, array_map('sanitize_text_field', $params['tags']));
+            \wp_set_post_tags($post_id, array_map('\sanitize_text_field', $params['tags']));
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'message' => 'Post created successfully',
             'post_id' => $post_id,
@@ -246,7 +251,7 @@ class N8N_Integration_API {
     private function update_post($params) {
         // Check required parameters
         if (!isset($params['post_id'])) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Missing post_id parameter',
             ), 400);
@@ -255,9 +260,9 @@ class N8N_Integration_API {
         $post_id = intval($params['post_id']);
         
         // Check if the post exists
-        $post = get_post($post_id);
+        $post = \get_post($post_id);
         if (!$post) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Post not found',
             ), 404);
@@ -270,15 +275,15 @@ class N8N_Integration_API {
         
         // Add optional parameters if provided
         if (isset($params['title'])) {
-            $post_data['post_title'] = sanitize_text_field($params['title']);
+            $post_data['post_title'] = \sanitize_text_field($params['title']);
         }
         
         if (isset($params['content'])) {
-            $post_data['post_content'] = wp_kses_post($params['content']);
+            $post_data['post_content'] = \wp_kses_post($params['content']);
         }
         
         if (isset($params['status'])) {
-            $post_data['post_status'] = sanitize_text_field($params['status']);
+            $post_data['post_status'] = \sanitize_text_field($params['status']);
         }
         
         if (isset($params['author_id'])) {
@@ -286,11 +291,11 @@ class N8N_Integration_API {
         }
         
         // Update the post
-        $result = wp_update_post($post_data, true);
+        $result = \wp_update_post($post_data, true);
         
         // Check if the post was updated successfully
-        if (is_wp_error($result)) {
-            return new WP_REST_Response(array(
+        if (\is_wp_error($result)) {
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => $result->get_error_message(),
             ), 500);
@@ -299,21 +304,21 @@ class N8N_Integration_API {
         // Update post meta if provided
         if (isset($params['meta']) && is_array($params['meta'])) {
             foreach ($params['meta'] as $meta_key => $meta_value) {
-                update_post_meta($post_id, sanitize_text_field($meta_key), sanitize_text_field($meta_value));
+                \update_post_meta($post_id, \sanitize_text_field($meta_key), \sanitize_text_field($meta_value));
             }
         }
         
         // Update post categories if provided
         if (isset($params['categories']) && is_array($params['categories'])) {
-            wp_set_post_categories($post_id, array_map('intval', $params['categories']));
+            \wp_set_post_categories($post_id, array_map('intval', $params['categories']));
         }
         
         // Update post tags if provided
         if (isset($params['tags']) && is_array($params['tags'])) {
-            wp_set_post_tags($post_id, array_map('sanitize_text_field', $params['tags']));
+            \wp_set_post_tags($post_id, array_map('\sanitize_text_field', $params['tags']));
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'message' => 'Post updated successfully',
             'post_id' => $post_id,
@@ -330,7 +335,7 @@ class N8N_Integration_API {
     private function delete_post($params) {
         // Check required parameters
         if (!isset($params['post_id'])) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Missing post_id parameter',
             ), 400);
@@ -339,9 +344,9 @@ class N8N_Integration_API {
         $post_id = intval($params['post_id']);
         
         // Check if the post exists
-        $post = get_post($post_id);
+        $post = \get_post($post_id);
         if (!$post) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Post not found',
             ), 404);
@@ -349,17 +354,17 @@ class N8N_Integration_API {
         
         // Delete the post
         $force_delete = isset($params['force_delete']) ? (bool) $params['force_delete'] : false;
-        $result = wp_delete_post($post_id, $force_delete);
+        $result = \wp_delete_post($post_id, $force_delete);
         
         // Check if the post was deleted successfully
         if (!$result) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Failed to delete post',
             ), 500);
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'message' => 'Post deleted successfully',
         ), 200);
@@ -375,7 +380,7 @@ class N8N_Integration_API {
     private function create_user($params) {
         // Check required parameters
         if (!isset($params['username']) || !isset($params['email']) || !isset($params['password'])) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Missing required parameters',
             ), 400);
@@ -383,15 +388,15 @@ class N8N_Integration_API {
         
         // Set up the user data
         $user_data = array(
-            'user_login' => sanitize_user($params['username']),
-            'user_email' => sanitize_email($params['email']),
+            'user_login' => \sanitize_user($params['username']),
+            'user_email' => \sanitize_email($params['email']),
             'user_pass'  => $params['password'],
-            'role'       => isset($params['role']) ? sanitize_text_field($params['role']) : 'subscriber',
+            'role'       => isset($params['role']) ? \sanitize_text_field($params['role']) : 'subscriber',
         );
         
         // Add optional parameters if provided
         if (isset($params['first_name'])) {
-            $user_data['first_name'] = sanitize_text_field($params['first_name']);
+            $user_data['first_name'] = \sanitize_text_field($params['first_name']);
         }
         
         if (isset($params['last_name'])) {
@@ -406,8 +411,8 @@ class N8N_Integration_API {
         $user_id = wp_insert_user($user_data);
         
         // Check if the user was created successfully
-        if (is_wp_error($user_id)) {
-            return new WP_REST_Response(array(
+        if (\is_wp_error($user_id)) {
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => $user_id->get_error_message(),
             ), 500);
@@ -437,7 +442,7 @@ class N8N_Integration_API {
     private function update_user($params) {
         // Check required parameters
         if (!isset($params['user_id'])) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Missing user_id parameter',
             ), 400);
@@ -448,7 +453,7 @@ class N8N_Integration_API {
         // Check if the user exists
         $user = get_user_by('id', $user_id);
         if (!$user) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'User not found',
             ), 404);
@@ -488,8 +493,8 @@ class N8N_Integration_API {
         $result = wp_update_user($user_data);
         
         // Check if the user was updated successfully
-        if (is_wp_error($result)) {
-            return new WP_REST_Response(array(
+        if (\is_wp_error($result)) {
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => $result->get_error_message(),
             ), 500);
@@ -519,7 +524,7 @@ class N8N_Integration_API {
     private function handle_custom_action($params) {
         // Check required parameters
         if (!isset($params['custom_action_type'])) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Missing custom_action_type parameter',
             ), 400);
@@ -531,7 +536,7 @@ class N8N_Integration_API {
             'message' => 'No handler found for this custom action',
         ), $params);
         
-        return new WP_REST_Response($result, $result['success'] ? 200 : 400);
+        return new \WP_REST_Response($result, $result['success'] ? 200 : 400);
     }
 
     /**
@@ -549,7 +554,7 @@ class N8N_Integration_API {
             'webhook_urls' => get_option('n8n_integration_webhook_urls', array()),
         );
         
-        return new WP_REST_Response($settings, 200);
+        return new \WP_REST_Response($settings, 200);
     }
 
     /**
@@ -612,7 +617,7 @@ class N8N_Integration_API {
         
         // Check if n8n URL is set
         if (empty($n8n_url)) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'n8n URL is not set',
             ), 400);
@@ -622,16 +627,16 @@ class N8N_Integration_API {
         $response = wp_remote_get($n8n_url . '/healthz');
         
         // Check if the request was successful
-        if (is_wp_error($response)) {
-            return new WP_REST_Response(array(
+        if (\is_wp_error($response)) {
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Failed to connect to n8n: ' . $response->get_error_message(),
             ), 500);
         }
         
         // Check if the response code is 200
-        if (wp_remote_retrieve_response_code($response) !== 200) {
-            return new WP_REST_Response(array(
+        if (\wp_remote_retrieve_response_code($response) !== 200) {
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Failed to connect to n8n: Invalid response code',
             ), 500);
@@ -974,7 +979,7 @@ class N8N_Integration_API {
         ));
         
         // Log error if request failed
-        if (is_wp_error($response)) {
+        if (\is_wp_error($response)) {
             error_log('n8n Integration: Failed to send webhook data - ' . $response->get_error_message());
         }
     }
@@ -1013,14 +1018,14 @@ class N8N_Integration_API {
      * @param    string    $endpoint    The API endpoint.
      * @param    string    $method      The HTTP method (GET, POST, etc.).
      * @param    array     $data        The data to send (for POST, PUT, etc.).
-     * @return   array|WP_Error         The response or error.
+     * @return   array|\WP_Error         The response or error.
      */
     private function request_n8n_api($endpoint, $method = 'GET', $data = null) {
         $api_url = $this->get_n8n_api_url();
         $api_key = $this->get_n8n_api_key();
         
         if (empty($api_url)) {
-            return new WP_Error('n8n_api_error', 'n8n URL is not configured');
+            return new \WP_Error('n8n_api_error', 'n8n URL is not configured');
         }
         
         $url = $api_url . $endpoint;
@@ -1045,7 +1050,7 @@ class N8N_Integration_API {
         
         $response = wp_remote_request($url, $args);
         
-        if (is_wp_error($response)) {
+        if (\is_wp_error($response)) {
             error_log('n8n Integration: API request failed - ' . $response->get_error_message());
             return $response;
         }
@@ -1055,7 +1060,7 @@ class N8N_Integration_API {
         
         if ($response_code < 200 || $response_code >= 300) {
             error_log('n8n Integration: API request failed with code ' . $response_code . ' - ' . $response_body);
-            return new WP_Error('n8n_api_error', 'API request failed with code ' . $response_code, array(
+            return new \WP_Error('n8n_api_error', 'API request failed with code ' . $response_code, array(
                 'status' => $response_code,
                 'body' => $response_body,
             ));
@@ -1074,8 +1079,8 @@ class N8N_Integration_API {
     public function get_workflows($request) {
         $response = $this->request_n8n_api('workflows');
         
-        if (is_wp_error($response)) {
-            return new WP_REST_Response(array(
+        if (\is_wp_error($response)) {
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => $response->get_error_message(),
             ), 500);
@@ -1099,7 +1104,7 @@ class N8N_Integration_API {
         
         // Check required parameters
         if (!isset($params['workflow_id'])) {
-            return new WP_REST_Response(array(
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Missing workflow_id parameter',
             ), 400);
@@ -1120,8 +1125,8 @@ class N8N_Integration_API {
         // Execute workflow
         $response = $this->request_n8n_api('workflows/' . $workflow_id . '/execute', 'POST', $data);
         
-        if (is_wp_error($response)) {
-            return new WP_REST_Response(array(
+        if (\is_wp_error($response)) {
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => $response->get_error_message(),
             ), 500);
@@ -1146,8 +1151,8 @@ class N8N_Integration_API {
         
         $response = $this->request_n8n_api('executions/' . $execution_id);
         
-        if (is_wp_error($response)) {
-            return new WP_REST_Response(array(
+        if (\is_wp_error($response)) {
+            return new \WP_REST_Response(array(
                 'success' => false,
                 'message' => $response->get_error_message(),
             ), 500);
