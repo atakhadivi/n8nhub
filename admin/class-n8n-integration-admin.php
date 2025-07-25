@@ -116,6 +116,15 @@ class N8N_Integration_Admin {
             $this->plugin_name . '-logs',
             array($this, 'display_plugin_logs_page')
         );
+        
+        add_submenu_page(
+            $this->plugin_name,
+            __('Test Triggers', 'n8n-wordpress-integration'),
+            __('Test Triggers', 'n8n-wordpress-integration'),
+            'manage_options',
+            $this->plugin_name . '-test-triggers',
+            array($this, 'display_plugin_test_triggers_page')
+        );
     }
 
     /**
@@ -165,6 +174,15 @@ class N8N_Integration_Admin {
      */
     public function display_plugin_logs_page() {
         include_once N8N_INTEGRATION_PLUGIN_DIR . 'admin/partials/n8n-integration-admin-logs.php';
+    }
+    
+    /**
+     * Render the test triggers page for this plugin.
+     *
+     * @since    1.0.0
+     */
+    public function display_plugin_test_triggers_page() {
+        include_once N8N_INTEGRATION_PLUGIN_DIR . 'admin/partials/n8n-integration-admin-test-trigger.php';
     }
 
 }

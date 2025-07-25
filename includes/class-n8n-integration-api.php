@@ -729,61 +729,17 @@ class N8N_Integration_API {
             return;
         }
         
-        // Prepare post data
-        $post_data = array(
-            'id' => $post_id,
-            'title' => $post->post_title,
-            'content' => $post->post_content,
-            'excerpt' => $post->post_excerpt,
-            'status' => $post->post_status,
-            'type' => $post->post_type,
-            'author' => $post->post_author,
-            'date' => $post->post_date,
-            'modified' => $post->post_modified,
-            'url' => \get_permalink($post_id),
-            'is_update' => $update,
-        );
+        // Use the payload builder to create enhanced post data
+        require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-n8n-integration-payload-builder.php';
+        $post_data = N8N_Integration_Payload_Builder::build_post_payload($post_id);
         
-        // Add post meta
-        $post_meta = \get_post_meta($post_id);
-        if (!empty($post_meta)) {
-            $post_data['meta'] = array();
-            foreach ($post_meta as $meta_key => $meta_values) {
-                $post_data['meta'][$meta_key] = count($meta_values) === 1 ? $meta_values[0] : $meta_values;
-            }
-        }
-        
-        // Add post categories
-        $categories = \get_the_category($post_id);
-        if (!empty($categories)) {
-            $post_data['categories'] = array();
-            foreach ($categories as $category) {
-                $post_data['categories'][] = array(
-                    'id' => $category->term_id,
-                    'name' => $category->name,
-                    'slug' => $category->slug,
-                );
-            }
-        }
-        
-        // Add post tags
-        $tags = \get_the_tags($post_id);
-        if (!empty($tags)) {
-            $post_data['tags'] = array();
-            foreach ($tags as $tag) {
-                $post_data['tags'][] = array(
-                    'id' => $tag->term_id,
-                    'name' => $tag->name,
-                    'slug' => $tag->slug,
-                );
-            }
-        }
+        // Add trigger-specific data
+        $post_data['trigger'] = 'post_save';
+        $post_data['is_update'] = $update;
         
         // Send data to n8n webhook
-        $this->send_webhook_data($webhook_data, array(
-            'trigger' => 'post_save',
-            'data' => $post_data,
-        ));
+        $this->send_webhook_data($webhook_data, $post_data);
+    }
     }
 
     /**
@@ -1122,6 +1078,68 @@ class N8N_Integration_API {
         \update_option('n8n_integration_webhook_logs', array());
         
         wp_send_json_success('Logs cleared successfully');
+    }
+    
+    /**
+     * Test trigger by sending sample data to the webhook URL.
+     *
+     * @since    1.0.0
+     * @return   void
+     */
+    public function test_trigger() {
+        // Check if user has admin permissions
+        if (!\current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+        
+        // Check nonce
+        if (!isset($_POST['nonce']) || !\wp_verify_nonce($_POST['nonce'], 'n8n_integration_admin_nonce')) {
+            wp_send_json_error('Invalid nonce');
+        }
+        
+        // Get trigger ID and test data
+        $trigger_id = isset($_POST['trigger_id']) ? \sanitize_text_field($_POST['trigger_id']) : '';
+        $test_data_json = isset($_POST['test_data']) ? \wp_unslash($_POST['test_data']) : '';
+        
+        // Check if trigger ID is valid
+        if (empty($trigger_id)) {
+            wp_send_json_error('Invalid trigger ID');
+        }
+        
+        // Check if trigger is enabled
+        $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
+        if (!in_array($trigger_id, $enabled_triggers)) {
+            wp_send_json_error('Trigger is not enabled');
+        }
+        
+        // Get webhook URL data
+        $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
+        $webhook_data = isset($webhook_urls[$trigger_id]) ? $webhook_urls[$trigger_id] : '';
+        
+        // If no webhook URL is set, return error
+        if (empty($webhook_data) || (is_array($webhook_data) && empty($webhook_data['url']))) {
+            wp_send_json_error('No webhook URL is set for this trigger');
+        }
+        
+        // Parse test data
+        $test_data = json_decode($test_data_json, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            wp_send_json_error('Invalid JSON in test data: ' . json_last_error_msg());
+        }
+        
+        // Send data to n8n webhook
+        $result = $this->send_webhook_data($webhook_data, array(
+            'trigger' => $trigger_id,
+            'data' => $test_data,
+            'test' => true
+        ));
+        
+        // Return result
+        if ($result['success']) {
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result);
+        }
     }
     
     /**

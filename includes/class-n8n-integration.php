@@ -187,6 +187,10 @@ class N8N_Integration {
         $this->loader->add_action('user_register', $plugin_api, 'trigger_user_register', 10, 1);
         $this->loader->add_action('comment_post', $plugin_api, 'trigger_comment_post', 10, 3);
         $this->loader->add_action('woocommerce_new_order', $plugin_api, 'trigger_woocommerce_new_order', 10, 1);
+        
+        // Register AJAX handlers
+        $this->loader->add_action('wp_ajax_n8n_integration_clear_logs', $plugin_api, 'clear_logs');
+        $this->loader->add_action('wp_ajax_n8n_integration_test_trigger', $plugin_api, 'test_trigger');
 
     }
 
