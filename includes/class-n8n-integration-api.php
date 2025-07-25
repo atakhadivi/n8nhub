@@ -53,49 +53,49 @@ class N8N_Integration_API {
      */
     public function register_routes() {
         // Register route for webhook actions (n8n -> WordPress)
-        register_rest_route('n8n-integration/v1', '/webhook', array(
+        \register_rest_route('n8n-integration/v1', '/webhook', array(
             'methods' => 'POST',
             'callback' => array($this, 'handle_webhook'),
             'permission_callback' => array($this, 'check_webhook_permission'),
         ));
 
         // Register route for getting plugin settings
-        register_rest_route('n8n-integration/v1', '/settings', array(
+        \register_rest_route('n8n-integration/v1', '/settings', array(
             'methods' => 'GET',
             'callback' => array($this, 'get_settings'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
 
         // Register route for updating plugin settings
-        register_rest_route('n8n-integration/v1', '/settings', array(
+        \register_rest_route('n8n-integration/v1', '/settings', array(
             'methods' => 'POST',
             'callback' => array($this, 'update_settings'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
 
         // Register route for testing n8n connection
-        register_rest_route('n8n-integration/v1', '/test-connection', array(
+        \register_rest_route('n8n-integration/v1', '/test-connection', array(
             'methods' => 'POST',
             'callback' => array($this, 'test_connection'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
         
         // Register route for getting n8n workflows
-        register_rest_route('n8n-integration/v1', '/workflows', array(
+        \register_rest_route('n8n-integration/v1', '/workflows', array(
             'methods' => 'GET',
             'callback' => array($this, 'get_workflows'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
         
         // Register route for executing n8n workflow
-        register_rest_route('n8n-integration/v1', '/execute-workflow', array(
+        \register_rest_route('n8n-integration/v1', '/execute-workflow', array(
             'methods' => 'POST',
             'callback' => array($this, 'execute_workflow'),
             'permission_callback' => array($this, 'check_admin_permission'),
         ));
         
         // Register route for getting n8n workflow execution status
-        register_rest_route('n8n-integration/v1', '/workflow-status/(?P<execution_id>[\w-]+)', array(
+        \register_rest_route('n8n-integration/v1', '/workflow-status/(?P<execution_id>[\w-]+)', array(
             'methods' => 'GET',
             'callback' => array($this, 'get_workflow_status'),
             'permission_callback' => array($this, 'check_admin_permission'),
@@ -111,7 +111,7 @@ class N8N_Integration_API {
      */
     public function check_webhook_permission($request) {
         // Get the API key from the plugin settings
-        $api_key = get_option('n8n_integration_api_key', '');
+        $api_key = \get_option('n8n_integration_api_key', '');
         
         // If no API key is set, deny access
         if (empty($api_key)) {
@@ -131,7 +131,7 @@ class N8N_Integration_API {
      * @return   bool    Whether the user has admin permissions.
      */
     public function check_admin_permission() {
-        return current_user_can('manage_options');
+        return \current_user_can('manage_options');
     }
 
     /**
@@ -400,15 +400,15 @@ class N8N_Integration_API {
         }
         
         if (isset($params['last_name'])) {
-            $user_data['last_name'] = sanitize_text_field($params['last_name']);
+            $user_data['last_name'] = \sanitize_text_field($params['last_name']);
         }
         
         if (isset($params['display_name'])) {
-            $user_data['display_name'] = sanitize_text_field($params['display_name']);
+            $user_data['display_name'] = \sanitize_text_field($params['display_name']);
         }
         
         // Create the user
-        $user_id = wp_insert_user($user_data);
+        $user_id = \wp_insert_user($user_data);
         
         // Check if the user was created successfully
         if (\is_wp_error($user_id)) {
@@ -421,11 +421,11 @@ class N8N_Integration_API {
         // Set user meta if provided
         if (isset($params['meta']) && is_array($params['meta'])) {
             foreach ($params['meta'] as $meta_key => $meta_value) {
-                update_user_meta($user_id, sanitize_text_field($meta_key), sanitize_text_field($meta_value));
+                \update_user_meta($user_id, \sanitize_text_field($meta_key), \sanitize_text_field($meta_value));
             }
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'message' => 'User created successfully',
             'user_id' => $user_id,
@@ -451,7 +451,7 @@ class N8N_Integration_API {
         $user_id = intval($params['user_id']);
         
         // Check if the user exists
-        $user = get_user_by('id', $user_id);
+        $user = \get_user_by('id', $user_id);
         if (!$user) {
             return new \WP_REST_Response(array(
                 'success' => false,
@@ -466,7 +466,7 @@ class N8N_Integration_API {
         
         // Add optional parameters if provided
         if (isset($params['email'])) {
-            $user_data['user_email'] = sanitize_email($params['email']);
+            $user_data['user_email'] = \sanitize_email($params['email']);
         }
         
         if (isset($params['password'])) {
@@ -474,23 +474,23 @@ class N8N_Integration_API {
         }
         
         if (isset($params['role'])) {
-            $user_data['role'] = sanitize_text_field($params['role']);
+            $user_data['role'] = \sanitize_text_field($params['role']);
         }
         
         if (isset($params['first_name'])) {
-            $user_data['first_name'] = sanitize_text_field($params['first_name']);
+            $user_data['first_name'] = \sanitize_text_field($params['first_name']);
         }
         
         if (isset($params['last_name'])) {
-            $user_data['last_name'] = sanitize_text_field($params['last_name']);
+            $user_data['last_name'] = \sanitize_text_field($params['last_name']);
         }
         
         if (isset($params['display_name'])) {
-            $user_data['display_name'] = sanitize_text_field($params['display_name']);
+            $user_data['display_name'] = \sanitize_text_field($params['display_name']);
         }
         
         // Update the user
-        $result = wp_update_user($user_data);
+        $result = \wp_update_user($user_data);
         
         // Check if the user was updated successfully
         if (\is_wp_error($result)) {
@@ -503,11 +503,11 @@ class N8N_Integration_API {
         // Update user meta if provided
         if (isset($params['meta']) && is_array($params['meta'])) {
             foreach ($params['meta'] as $meta_key => $meta_value) {
-                update_user_meta($user_id, sanitize_text_field($meta_key), sanitize_text_field($meta_value));
+                \update_user_meta($user_id, \sanitize_text_field($meta_key), \sanitize_text_field($meta_value));
             }
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'message' => 'User updated successfully',
             'user_id' => $user_id,
@@ -531,7 +531,7 @@ class N8N_Integration_API {
         }
         
         // Allow plugins to hook into custom actions
-        $result = apply_filters('n8n_integration_custom_action', array(
+        $result = \apply_filters('n8n_integration_custom_action', array(
             'success' => false,
             'message' => 'No handler found for this custom action',
         ), $params);
@@ -543,15 +543,15 @@ class N8N_Integration_API {
      * Get plugin settings.
      *
      * @since    1.0.0
-     * @return   WP_REST_Response    The response object.
+     * @return   \WP_REST_Response    The response object.
      */
     public function get_settings() {
         $settings = array(
-            'n8n_url' => get_option('n8n_integration_url', ''),
-            'api_key' => get_option('n8n_integration_api_key', ''),
-            'n8n_api_key' => get_option('n8n_integration_n8n_api_key', ''),
-            'enabled_triggers' => get_option('n8n_integration_enabled_triggers', array()),
-            'webhook_urls' => get_option('n8n_integration_webhook_urls', array()),
+            'n8n_url' => \get_option('n8n_integration_url', ''),
+            'api_key' => \get_option('n8n_integration_api_key', ''),
+            'n8n_api_key' => \get_option('n8n_integration_n8n_api_key', ''),
+            'enabled_triggers' => \get_option('n8n_integration_enabled_triggers', array()),
+            'webhook_urls' => \get_option('n8n_integration_webhook_urls', array()),
         );
         
         return new \WP_REST_Response($settings, 200);
@@ -569,34 +569,34 @@ class N8N_Integration_API {
         
         // Update n8n URL if provided
         if (isset($params['n8n_url'])) {
-            update_option('n8n_integration_url', esc_url_raw($params['n8n_url']));
+            \update_option('n8n_integration_url', \esc_url_raw($params['n8n_url']));
         }
         
         // Update API key if provided
         if (isset($params['api_key'])) {
-            update_option('n8n_integration_api_key', sanitize_text_field($params['api_key']));
+            \update_option('n8n_integration_api_key', \sanitize_text_field($params['api_key']));
         }
         
         // Update n8n API key if provided
         if (isset($params['n8n_api_key'])) {
-            update_option('n8n_integration_n8n_api_key', sanitize_text_field($params['n8n_api_key']));
+            \update_option('n8n_integration_n8n_api_key', \sanitize_text_field($params['n8n_api_key']));
         }
         
         // Update enabled triggers if provided
         if (isset($params['enabled_triggers']) && is_array($params['enabled_triggers'])) {
-            update_option('n8n_integration_enabled_triggers', array_map('sanitize_text_field', $params['enabled_triggers']));
+            \update_option('n8n_integration_enabled_triggers', array_map('\sanitize_text_field', $params['enabled_triggers']));
         }
         
         // Update webhook URLs if provided
         if (isset($params['webhook_urls']) && is_array($params['webhook_urls'])) {
             $webhook_urls = array();
             foreach ($params['webhook_urls'] as $trigger => $url) {
-                $webhook_urls[sanitize_text_field($trigger)] = esc_url_raw($url);
+                $webhook_urls[\sanitize_text_field($trigger)] = \esc_url_raw($url);
             }
-            update_option('n8n_integration_webhook_urls', $webhook_urls);
+            \update_option('n8n_integration_webhook_urls', $webhook_urls);
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'message' => 'Settings updated successfully',
         ), 200);
@@ -613,7 +613,7 @@ class N8N_Integration_API {
         $params = $request->get_params();
         
         // Get n8n URL from request or from settings
-        $n8n_url = isset($params['n8n_url']) ? esc_url_raw($params['n8n_url']) : get_option('n8n_integration_url', '');
+        $n8n_url = isset($params['n8n_url']) ? \esc_url_raw($params['n8n_url']) : \get_option('n8n_integration_url', '');
         
         // Check if n8n URL is set
         if (empty($n8n_url)) {
@@ -624,7 +624,7 @@ class N8N_Integration_API {
         }
         
         // Make a request to n8n health endpoint
-        $response = wp_remote_get($n8n_url . '/healthz');
+        $response = \wp_remote_get($n8n_url . '/healthz');
         
         // Check if the request was successful
         if (\is_wp_error($response)) {
@@ -642,7 +642,7 @@ class N8N_Integration_API {
             ), 500);
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'message' => 'Successfully connected to n8n',
         ), 200);
@@ -658,12 +658,12 @@ class N8N_Integration_API {
      */
     public function trigger_post_save($post_id, $post, $update) {
         // Don't trigger for auto-drafts or post revisions
-        if ($post->post_status === 'auto-draft' || wp_is_post_revision($post_id)) {
+        if ($post->post_status === 'auto-draft' || \wp_is_post_revision($post_id)) {
             return;
         }
         
         // Get enabled triggers
-        $enabled_triggers = get_option('n8n_integration_enabled_triggers', array());
+        $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
         
         // Check if post save trigger is enabled
         if (!in_array('post_save', $enabled_triggers)) {
@@ -671,7 +671,7 @@ class N8N_Integration_API {
         }
         
         // Get webhook URL for post save trigger
-        $webhook_urls = get_option('n8n_integration_webhook_urls', array());
+        $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
         $webhook_url = isset($webhook_urls['post_save']) ? $webhook_urls['post_save'] : '';
         
         // If no webhook URL is set, return
@@ -690,12 +690,12 @@ class N8N_Integration_API {
             'author' => $post->post_author,
             'date' => $post->post_date,
             'modified' => $post->post_modified,
-            'url' => get_permalink($post_id),
+            'url' => \get_permalink($post_id),
             'is_update' => $update,
         );
         
         // Add post meta
-        $post_meta = get_post_meta($post_id);
+        $post_meta = \get_post_meta($post_id);
         if (!empty($post_meta)) {
             $post_data['meta'] = array();
             foreach ($post_meta as $meta_key => $meta_values) {
@@ -704,7 +704,7 @@ class N8N_Integration_API {
         }
         
         // Add post categories
-        $categories = get_the_category($post_id);
+        $categories = \get_the_category($post_id);
         if (!empty($categories)) {
             $post_data['categories'] = array();
             foreach ($categories as $category) {
@@ -717,7 +717,7 @@ class N8N_Integration_API {
         }
         
         // Add post tags
-        $tags = get_the_tags($post_id);
+        $tags = \get_the_tags($post_id);
         if (!empty($tags)) {
             $post_data['tags'] = array();
             foreach ($tags as $tag) {
@@ -744,7 +744,7 @@ class N8N_Integration_API {
      */
     public function trigger_user_register($user_id) {
         // Get enabled triggers
-        $enabled_triggers = get_option('n8n_integration_enabled_triggers', array());
+        $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
         
         // Check if user register trigger is enabled
         if (!in_array('user_register', $enabled_triggers)) {
@@ -752,7 +752,7 @@ class N8N_Integration_API {
         }
         
         // Get webhook URL for user register trigger
-        $webhook_urls = get_option('n8n_integration_webhook_urls', array());
+        $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
         $webhook_url = isset($webhook_urls['user_register']) ? $webhook_urls['user_register'] : '';
         
         // If no webhook URL is set, return
@@ -761,7 +761,7 @@ class N8N_Integration_API {
         }
         
         // Get user data
-        $user = get_userdata($user_id);
+        $user = \get_userdata($user_id);
         
         // Prepare user data
         $user_data = array(
@@ -776,7 +776,7 @@ class N8N_Integration_API {
         );
         
         // Add user meta
-        $user_meta = get_user_meta($user_id);
+        $user_meta = \get_user_meta($user_id);
         if (!empty($user_meta)) {
             $user_data['meta'] = array();
             foreach ($user_meta as $meta_key => $meta_values) {
@@ -805,7 +805,7 @@ class N8N_Integration_API {
      */
     public function trigger_comment_post($comment_id, $comment_approved, $comment_data) {
         // Get enabled triggers
-        $enabled_triggers = get_option('n8n_integration_enabled_triggers', array());
+        $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
         
         // Check if comment post trigger is enabled
         if (!in_array('comment_post', $enabled_triggers)) {
@@ -813,7 +813,7 @@ class N8N_Integration_API {
         }
         
         // Get webhook URL for comment post trigger
-        $webhook_urls = get_option('n8n_integration_webhook_urls', array());
+        $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
         $webhook_url = isset($webhook_urls['comment_post']) ? $webhook_urls['comment_post'] : '';
         
         // If no webhook URL is set, return
@@ -822,7 +822,7 @@ class N8N_Integration_API {
         }
         
         // Get comment data
-        $comment = get_comment($comment_id);
+        $comment = \get_comment($comment_id);
         
         // Prepare comment data
         $comment_data = array(
@@ -836,12 +836,12 @@ class N8N_Integration_API {
             'approved' => $comment->comment_approved,
             'date' => $comment->comment_date,
             'user_id' => $comment->user_id,
-            'post_title' => get_the_title($comment->comment_post_ID),
-            'post_url' => get_permalink($comment->comment_post_ID),
+            'post_title' => \get_the_title($comment->comment_post_ID),
+            'post_url' => \get_permalink($comment->comment_post_ID),
         );
         
         // Add comment meta
-        $comment_meta = get_comment_meta($comment_id);
+        $comment_meta = \get_comment_meta($comment_id);
         if (!empty($comment_meta)) {
             $comment_data['meta'] = array();
             foreach ($comment_meta as $meta_key => $meta_values) {
@@ -869,7 +869,7 @@ class N8N_Integration_API {
         }
         
         // Get enabled triggers
-        $enabled_triggers = get_option('n8n_integration_enabled_triggers', array());
+        $enabled_triggers = \get_option('n8n_integration_enabled_triggers', array());
         
         // Check if WooCommerce new order trigger is enabled
         if (!in_array('woocommerce_new_order', $enabled_triggers)) {
@@ -877,7 +877,7 @@ class N8N_Integration_API {
         }
         
         // Get webhook URL for WooCommerce new order trigger
-        $webhook_urls = get_option('n8n_integration_webhook_urls', array());
+        $webhook_urls = \get_option('n8n_integration_webhook_urls', array());
         $webhook_url = isset($webhook_urls['woocommerce_new_order']) ? $webhook_urls['woocommerce_new_order'] : '';
         
         // If no webhook URL is set, return
@@ -886,7 +886,7 @@ class N8N_Integration_API {
         }
         
         // Get order data
-        $order = wc_get_order($order_id);
+        $order = \wc_get_order($order_id);
         
         // Prepare order data
         $order_data = array(
@@ -959,18 +959,18 @@ class N8N_Integration_API {
     private function send_webhook_data($webhook_url, $data) {
         // Add site information
         $data['site'] = array(
-            'name' => get_bloginfo('name'),
-            'url' => get_site_url(),
-            'admin_email' => get_bloginfo('admin_email'),
-            'version' => get_bloginfo('version'),
-            'language' => get_bloginfo('language'),
+            'name' => \get_bloginfo('name'),
+            'url' => \get_site_url(),
+            'admin_email' => \get_bloginfo('admin_email'),
+            'version' => \get_bloginfo('version'),
+            'language' => \get_bloginfo('language'),
         );
         
         // Add timestamp
-        $data['timestamp'] = current_time('timestamp');
+        $data['timestamp'] = \current_time('timestamp');
         
         // Send data to webhook URL
-        $response = wp_remote_post($webhook_url, array(
+        $response = \wp_remote_post($webhook_url, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
             ),
@@ -991,7 +991,7 @@ class N8N_Integration_API {
      * @return   string    The n8n API URL.
      */
     private function get_n8n_api_url() {
-        $n8n_url = get_option('n8n_integration_url', '');
+        $n8n_url = \get_option('n8n_integration_url', '');
         
         // If URL doesn't end with a slash, add it
         if (!empty($n8n_url) && substr($n8n_url, -1) !== '/') {
@@ -1008,7 +1008,7 @@ class N8N_Integration_API {
      * @return   string    The n8n API key.
      */
     private function get_n8n_api_key() {
-        return get_option('n8n_integration_n8n_api_key', '');
+        return \get_option('n8n_integration_n8n_api_key', '');
     }
 
     /**
@@ -1048,15 +1048,15 @@ class N8N_Integration_API {
             $args['body'] = json_encode($data);
         }
         
-        $response = wp_remote_request($url, $args);
+        $response = \wp_remote_request($url, $args);
         
         if (\is_wp_error($response)) {
             error_log('n8n Integration: API request failed - ' . $response->get_error_message());
             return $response;
         }
         
-        $response_code = wp_remote_retrieve_response_code($response);
-        $response_body = wp_remote_retrieve_body($response);
+        $response_code = \wp_remote_retrieve_response_code($response);
+        $response_body = \wp_remote_retrieve_body($response);
         
         if ($response_code < 200 || $response_code >= 300) {
             error_log('n8n Integration: API request failed with code ' . $response_code . ' - ' . $response_body);
@@ -1086,7 +1086,7 @@ class N8N_Integration_API {
             ), 500);
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'workflows' => $response,
         ), 200);
@@ -1096,8 +1096,8 @@ class N8N_Integration_API {
      * Execute n8n workflow.
      *
      * @since    1.0.0
-     * @param    WP_REST_Request    $request    The request object.
-     * @return   WP_REST_Response               The response object.
+     * @param    \WP_REST_Request    $request    The request object.
+     * @return   \WP_REST_Response               The response object.
      */
     public function execute_workflow($request) {
         $params = $request->get_params();
@@ -1110,16 +1110,16 @@ class N8N_Integration_API {
             ), 400);
         }
         
-        $workflow_id = sanitize_text_field($params['workflow_id']);
+        $workflow_id = \sanitize_text_field($params['workflow_id']);
         $data = isset($params['data']) ? $params['data'] : array();
         
         // Add WordPress site information
         $data['site'] = array(
-            'name' => get_bloginfo('name'),
-            'url' => get_site_url(),
-            'admin_email' => get_bloginfo('admin_email'),
-            'version' => get_bloginfo('version'),
-            'language' => get_bloginfo('language'),
+            'name' => \get_bloginfo('name'),
+            'url' => \get_site_url(),
+            'admin_email' => \get_bloginfo('admin_email'),
+            'version' => \get_bloginfo('version'),
+            'language' => \get_bloginfo('language'),
         );
         
         // Execute workflow
@@ -1132,7 +1132,7 @@ class N8N_Integration_API {
             ), 500);
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'execution_id' => isset($response['executionId']) ? $response['executionId'] : null,
             'data' => $response,
@@ -1143,8 +1143,8 @@ class N8N_Integration_API {
      * Get n8n workflow execution status.
      *
      * @since    1.0.0
-     * @param    WP_REST_Request    $request    The request object.
-     * @return   WP_REST_Response               The response object.
+     * @param    \WP_REST_Request    $request    The request object.
+     * @return   \WP_REST_Response               The response object.
      */
     public function get_workflow_status($request) {
         $execution_id = $request['execution_id'];
@@ -1158,7 +1158,7 @@ class N8N_Integration_API {
             ), 500);
         }
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => true,
             'status' => $response,
         ), 200);
