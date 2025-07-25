@@ -62,7 +62,7 @@ This document outlines the step-by-step implementation plan for the WP n8n Integ
   - [x] Log payload data
 - [x] Add log storage options (file or database)
 - [ ] Implement test trigger functionality
-- [ ] Add log viewer in admin UI
+- [x] Add log viewer in admin UI
 
 ## Phase 6: Documentation and Testing
 

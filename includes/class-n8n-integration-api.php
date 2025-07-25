@@ -11,6 +11,21 @@ if (!defined('WPINC')) {
  * Defines the REST API endpoints and WordPress hooks for n8n integration
  *
  * @since      1.0.0
+ *
+ * WordPress core functions and classes used in this file:
+ * 
+ * @see https://developer.wordpress.org/reference/functions/register_rest_route/
+ * @see https://developer.wordpress.org/reference/functions/get_option/
+ * @see https://developer.wordpress.org/reference/functions/update_option/
+ * @see https://developer.wordpress.org/reference/functions/current_user_can/
+ * @see https://developer.wordpress.org/reference/functions/sanitize_text_field/
+ * @see https://developer.wordpress.org/reference/functions/wp_kses_post/
+ * @see https://developer.wordpress.org/reference/functions/esc_url_raw/
+ * @see https://developer.wordpress.org/reference/functions/wp_remote_post/
+ * @see https://developer.wordpress.org/reference/functions/wp_remote_get/
+ * @see https://developer.wordpress.org/reference/functions/is_wp_error/
+ * @see https://developer.wordpress.org/reference/classes/wp_rest_response/
+ * @see https://developer.wordpress.org/reference/classes/wp_error/
  */
 class N8N_Integration_API {
 
@@ -1089,6 +1104,24 @@ class N8N_Integration_API {
         
         // Save logs
         \update_option('n8n_integration_webhook_logs', $logs);
+    }
+    
+    /**
+     * Clear webhook logs.
+     *
+     * @since    1.0.0
+     * @return   void
+     */
+    public function clear_logs() {
+        // Check if user has admin permissions
+        if (!\current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+        
+        // Clear logs
+        \update_option('n8n_integration_webhook_logs', array());
+        
+        wp_send_json_success('Logs cleared successfully');
     }
     
     /**

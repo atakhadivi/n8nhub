@@ -5,7 +5,18 @@
  *
  * This file is used to markup the admin-facing aspects of the plugin.
  *
+ * @link       https://n8n.io
  * @since      1.0.0
+ *
+ * @package    N8n_Integration
+ * @subpackage N8n_Integration/admin/partials
+ *
+ * WordPress core functions and classes used in this file:
+ * @see https://developer.wordpress.org/reference/functions/esc_html/
+ * @see https://developer.wordpress.org/reference/functions/get_admin_page_title/
+ * @see https://developer.wordpress.org/reference/functions/_e/
+ * @see https://developer.wordpress.org/reference/functions/get_option/
+ * @see https://developer.wordpress.org/reference/functions/wp_create_nonce/
  */
 
 // If this file is called directly, abort.
@@ -146,53 +157,37 @@ if (!defined('WPINC')) {
 
 <script type="text/javascript">
     jQuery(document).ready(function($) {
-        // Sample log data for demonstration
-        // In a real implementation, this would be fetched from the server
-        var sampleLogs = [
-            {
-                id: 1,
-                time: '<?php echo date('Y-m-d H:i:s'); ?>',
-                type: 'trigger',
-                event: 'post_save',
-                status: 'success',
-                message: 'Post #123 saved successfully',
-                details: {
-                    post_id: 123,
-                    post_title: 'Sample Post',
-                    webhook_url: 'https://n8n.example.com/webhook/123',
-                    response_code: 200,
-                    response_body: '{"success":true}'
-                }
-            },
-            {
-                id: 2,
-                time: '<?php echo date('Y-m-d H:i:s', strtotime('-1 hour')); ?>',
-                type: 'action',
-                event: 'create_post',
-                status: 'success',
-                message: 'Post #124 created successfully',
-                details: {
-                    post_id: 124,
-                    post_title: 'Created from n8n',
-                    request_body: '{"action":"create_post","title":"Created from n8n","content":"This post was created from n8n."}',
-                    response_body: '{"success":true,"post_id":124}'
-                }
-            },
-            {
-                id: 3,
-                time: '<?php echo date('Y-m-d H:i:s', strtotime('-2 hours')); ?>',
-                type: 'trigger',
-                event: 'user_register',
-                status: 'error',
-                message: 'Failed to send user data to n8n',
-                details: {
-                    user_id: 5,
-                    webhook_url: 'https://n8n.example.com/webhook/456',
-                    error: 'Connection refused',
-                    request_body: '{"trigger":"user_register","data":{"id":5,"username":"newuser"}}'
-                }
-            }
-        ];
+        // Get webhook logs from WordPress option
+        <?php 
+        $webhook_logs = get_option('n8n_integration_webhook_logs', array());
+        // Reverse the array to show newest logs first
+        $webhook_logs = array_reverse($webhook_logs);
+        ?>
+        
+        var webhookLogs = <?php echo json_encode($webhook_logs); ?>;
+        
+        // Convert webhook logs to the format expected by the UI
+        var logs = [];
+        
+        if (webhookLogs && webhookLogs.length > 0) {
+            webhookLogs.forEach(function(log, index) {
+                logs.push({
+                    id: index + 1,
+                    time: log.timestamp,
+                    type: 'trigger',
+                    event: log.trigger || 'webhook',
+                    status: log.success ? 'success' : 'error',
+                    message: log.success ? 'Webhook sent successfully' : 'Failed to send webhook',
+                    details: {
+                        webhook_url: log.url,
+                        webhook_name: log.name || '',
+                        data_sent: JSON.stringify(log.data),
+                        response: log.response || '',
+                        error: log.error || ''
+                    }
+                });
+            });
+        }
         
         // Function to render logs
         function renderLogs(logs) {
@@ -221,7 +216,7 @@ if (!defined('WPINC')) {
         }
         
         // Initial render
-        renderLogs(sampleLogs);
+        renderLogs(logs);
         
         // Filter logs
         $('#n8n-integration-logs-filter').on('submit', function(e) {
@@ -230,7 +225,7 @@ if (!defined('WPINC')) {
             var logType = $('select[name="log_type"]').val();
             var logStatus = $('select[name="log_status"]').val();
             
-            var filteredLogs = sampleLogs.filter(function(log) {
+            var filteredLogs = logs.filter(function(log) {
                 if (logType && log.type !== logType) return false;
                 if (logStatus && log.status !== logStatus) return false;
                 return true;
@@ -242,10 +237,27 @@ if (!defined('WPINC')) {
         // Clear logs
         $('#clear-logs').on('click', function() {
             if (confirm('<?php _e("Are you sure you want to clear all logs? This action cannot be undone.", "n8n-wordpress-integration"); ?>')) {
-                // In a real implementation, this would send an AJAX request to clear logs
-                sampleLogs = [];
-                renderLogs(sampleLogs);
-                alert('<?php _e("Logs cleared successfully.", "n8n-wordpress-integration"); ?>');
+                // Send AJAX request to clear logs
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'n8n_integration_clear_logs',
+                        nonce: '<?php echo wp_create_nonce("n8n_integration_clear_logs"); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            logs = [];
+                            renderLogs(logs);
+                            alert('<?php _e("Logs cleared successfully.", "n8n-wordpress-integration"); ?>');
+                        } else {
+                            alert('<?php _e("Failed to clear logs.", "n8n-wordpress-integration"); ?>');
+                        }
+                    },
+                    error: function() {
+                        alert('<?php _e("Failed to clear logs.", "n8n-wordpress-integration"); ?>');
+                    }
+                });
             }
         });
         
@@ -263,7 +275,7 @@ if (!defined('WPINC')) {
         // View log details
         $(document).on('click', '.view-details', function() {
             var logId = $(this).data('log-id');
-            var log = sampleLogs.find(function(log) { return log.id === logId; });
+            var log = logs.find(function(log) { return log.id === logId; });
             
             if (log) {
                 var detailsHtml = '<table class="widefat">';

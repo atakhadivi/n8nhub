@@ -73,7 +73,7 @@ Perform these WordPress actions from n8n:
 6. Optionally, add a name and description for the webhook URL
 7. Save the settings
 
-### Using Debug Mode
+### Using Debug Mode and Logs
 
 1. Go to WordPress Admin > n8n Integration > Settings
 2. Enable the Debug Mode checkbox
@@ -81,6 +81,10 @@ Perform these WordPress actions from n8n:
 4. When debug mode is enabled, all webhook requests will be logged
 5. Logs include timestamp, URL, data sent, success status, and response
 6. The plugin stores up to 100 log entries
+7. View logs by going to WordPress Admin > n8n Integration > Logs
+8. Filter logs by type and status
+9. Click "View" to see detailed information about each log entry
+10. Use the "Clear Logs" button to remove all logs
 
 ### Setting up an n8n to WordPress Action
 
